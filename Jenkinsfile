@@ -19,9 +19,13 @@ podTemplate(
             ansiColor('xterm') {
                 stage("Init") {
                     sh ('''
-				        ls -lah
             	        make init
-            	        ls -lah
+                    ''')
+                },
+                stage("Test-Report-JUnit") {
+                    sh ('''
+            	        make test-report-junit
+                        ls -lah
                     ''')
                 }
             }
