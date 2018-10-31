@@ -10,6 +10,7 @@ podTemplate(
             command: 'cat',
         )
     ]
+    // TODO: Add persistentVolumeClaim
 ){
     node(podlabel) {
         stage('Checkout') {
