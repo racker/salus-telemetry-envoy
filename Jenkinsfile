@@ -1,5 +1,7 @@
+podlabel = "envoy-${UUID.randomUUID().toString()}"
+
 podTemplate(
-    label: 'envoy',
+    label: podlabel,
     containers: [
         containerTemplate(
             name: 'envoy',
@@ -9,7 +11,7 @@ podTemplate(
         )
     ]
 ){
-    node(envoy) {
+    node(podlabel) {
         stage('Checkout') {
             checkout scm
         }
