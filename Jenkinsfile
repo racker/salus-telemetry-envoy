@@ -25,6 +25,7 @@ podTemplate(
                 stage("Test-Report-JUnit") {
                     sh ('''
             	        make test-report-junit
+                        cat test-results/report.xml
                     ''')
                 }
             }
