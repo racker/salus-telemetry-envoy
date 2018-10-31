@@ -60,7 +60,8 @@ else
 ifeq (${OS},Linux)
 init-os-specific:
 ifeq (${IAmGroot},root)
-	apt install -y protobuf-compiler
+	apt-get update
+	apt-get install -y protobuf-compiler
 else
 	sudo apt install -y protobuf-compiler
 endif
