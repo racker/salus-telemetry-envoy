@@ -21,7 +21,7 @@ podTemplate(
                     sh ('''
             	        make init
                     ''')
-                },
+                }
                 stage("Test-Report-JUnit") {
                     sh ('''
             	        make test-report-junit
