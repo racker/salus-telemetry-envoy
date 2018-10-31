@@ -13,9 +13,10 @@ podTemplate(label: label, containers: [
           sh 'make init'
       }
     }
-    stage('Init') {
+    stage('test-report-junit') {
       container('envoy') {
           sh 'make test-report-junit'
+          sh 'ls -lah'
       }
     }
   }
