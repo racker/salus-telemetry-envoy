@@ -7,14 +7,14 @@ podTemplate(label: label, containers: [
   ]) {
 
   node(label) {
-    stage('Init') {
-      container('envoy') {
+    container('envoy') {
+      stage('Init') {
+          sh 'ls -lah'
           checkout scm
           sh 'make init'
+          sh 'ls -lah'
       }
-    }
-    stage('test-report-junit') {
-      container('envoy') {
+      stage('test-report-junit') {
           sh 'make test-report-junit'
           sh 'ls -lah'
       }
