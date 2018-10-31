@@ -7,13 +7,9 @@ podTemplate(label: label, containers: [
   ]) {
 
   node(label) {
-    stage('Checkout') {
-      container('envoy') {
-        checkout scm
-      }
-    }
     stage('Init') {
       container('envoy') {
+          checkout scm
           sh 'make init'
       }
     }
