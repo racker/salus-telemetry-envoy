@@ -1,4 +1,5 @@
 OS := $(shell uname -s)
+IAmGroot := $(shell whoami)
 
 .PHONY: default
 default: generate build
@@ -58,7 +59,11 @@ init-os-specific:
 else
 ifeq (${OS},Linux)
 init-os-specific:
+ifeq (${IAmGroot},root)
+	apt install -y protobuf-compiler
+else
 	sudo apt install -y protobuf-compiler
+endif
 endif
 endif
 
