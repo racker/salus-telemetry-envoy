@@ -7,10 +7,19 @@ podTemplate(label: label, containers: [
   ]) {
 
   node(label) {
-    stage('Init') {
-      git 'https://github.com/jenkinsci/kubernetes-plugin.git'
+    stage('Checkout') {
       container('envoy') {
-          sh 'make ini'
+        checkout scm
+      }
+    }
+    stage('Init') {
+      container('envoy') {
+          sh 'make init'
+      }
+    }
+    stage('Init') {
+      container('envoy') {
+          sh 'make test-report-junit'
       }
     }
   }
