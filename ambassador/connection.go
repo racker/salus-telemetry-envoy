@@ -143,7 +143,11 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 
 func (c *StandardEgressConnection) attach() error {
 
-	log.WithField("address", c.Address).Info("dialing ambassador")
+	c.envoyId = c.idGenerator.Generate()
+	log.
+		WithField("ambassadorAddress", c.Address).
+		WithField("envoyId", c.envoyId).
+		Info("dialing ambassador")
 	// use a blocking dial, but fail on non-temp errors so that we can catch connectivity errors here rather than during
 	// the attach operation
 	conn, err := grpc.Dial(c.Address,
@@ -158,7 +162,6 @@ func (c *StandardEgressConnection) attach() error {
 	defer conn.Close()
 
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
-	c.envoyId = c.idGenerator.Generate()
 	callMetadata := metadata.Pairs(EnvoyIdHeader, c.envoyId)
 
 	cancelCtx, cancelFunc := context.WithCancel(c.ctx)
