@@ -69,7 +69,7 @@ type StandardEgressConnection struct {
 	KeepAliveInterval time.Duration
 
 	client            telemetry_edge.TelemetryAmbassadorClient
-	instanceId        string
+	envoyId           string
 	ctx               context.Context
 	agentsRunner      agents.Router
 	grpcTlsDialOption grpc.DialOption
@@ -137,7 +137,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 			log.WithError(err).Warn("failure during retry section")
 		}
 
-		c.instanceId = c.idGenerator.Generate()
+		c.envoyId = c.idGenerator.Generate()
 	}
 }
 
@@ -158,15 +158,14 @@ func (c *StandardEgressConnection) attach() error {
 	defer conn.Close()
 
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
-	c.instanceId = c.idGenerator.Generate()
-	callMetadata := metadata.Pairs(EnvoyIdHeader, c.instanceId)
+	c.envoyId = c.idGenerator.Generate()
+	callMetadata := metadata.Pairs(EnvoyIdHeader, c.envoyId)
 
 	cancelCtx, cancelFunc := context.WithCancel(c.ctx)
 	callCtx := metadata.NewOutgoingContext(cancelCtx, callMetadata)
 	c.outgoingContext = callCtx
 
 	envoySummary := &telemetry_edge.EnvoySummary{
-		InstanceId:      c.instanceId,
 		SupportedAgents: c.supportedAgents,
 		Labels:          c.labels,
 	}
@@ -204,7 +203,6 @@ func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentTy
 
 	log.Debug("posting log event")
 	_, err := c.client.PostLogEvent(callCtx, &telemetry_edge.LogEvent{
-		InstanceId:  c.instanceId,
 		AgentType:   agentType,
 		JsonContent: jsonContent,
 	})
@@ -219,7 +217,6 @@ func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 
 	log.WithField("metric", metric).Debug("posting metric")
 	_, err := c.client.PostMetric(callCtx, &telemetry_edge.PostedMetric{
-		InstanceId: c.instanceId,
 		Metric:     metric,
 	})
 	if err != nil {
@@ -227,19 +224,17 @@ func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 	}
 }
 
-func (c *StandardEgressConnection) sendKeepAlives(ctx context.Context, errChan chan<- error) {
+func (c *StandardEgressConnection) sendKeepAlives(callCtx context.Context, errChan chan<- error) {
 	for {
 		select {
 		case <-time.After(c.KeepAliveInterval):
-			_, err := c.client.KeepAlive(ctx, &telemetry_edge.KeepAliveRequest{
-				InstanceId: c.instanceId,
-			})
+			_, err := c.client.KeepAlive(callCtx, &telemetry_edge.KeepAliveRequest{})
 			if err != nil {
 				errChan <- errors.Wrap(err, "failed to send keep alive")
 				return
 			}
 
-		case <-ctx.Done():
+		case <-callCtx.Done():
 			return
 		}
 	}

@@ -1,5 +1,5 @@
 syntax = "proto3";
-option java_package = "com.rackspace.rmii.services";
+option java_package = "com.rackspace.salus.services";
 
 service TelemetryAmbassador {
     rpc AttachEnvoy (EnvoySummary) returns (stream EnvoyInstruction) {}
@@ -11,11 +11,9 @@ service TelemetryAmbassador {
 message EnvoySummary {
     string version = 1;
 
-    string instanceId = 2;
+    repeated AgentType supportedAgents = 2;
 
-    repeated AgentType supportedAgents = 3;
-
-    map<string, string> labels = 4;
+    map<string, string> labels = 3;
 }
 
 enum AgentType {
@@ -72,24 +70,22 @@ message ConfigurationOp {
 
 // mainly used to test the ambassador->envoy liveness of the channel, but could eventually
 // contain the full set of instructions of ensure consistency
-message EnvoyInstructionRefresh{}
+message EnvoyInstructionRefresh {}
 
-message KeepAliveRequest{
-    string instanceId = 1;
+message KeepAliveRequest {
 }
-message KeepAliveResponse{}
+
+message KeepAliveResponse {}
 
 message LogEvent {
-    string instanceId = 1;
-    AgentType agentType = 2;
-    string jsonContent = 3;
+    AgentType agentType = 1;
+    string jsonContent = 2;
 }
 
-message PostLogEventResponse{}
+message PostLogEventResponse {}
 
 message PostedMetric {
-    string instanceId = 1;
-    Metric metric = 2;
+    Metric metric = 1;
 }
 
 message Metric {
@@ -107,4 +103,4 @@ message NameTagValueMetric {
     map<string,string> svalues = 5;
 }
 
-message PostMetricResponse{}
+message PostMetricResponse {}
