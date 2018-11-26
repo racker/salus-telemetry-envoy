@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 	netContext "golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"net"
 	"strconv"
 	"testing"
@@ -37,6 +38,11 @@ import (
 )
 
 type TestingAmbassadorService struct {
+	idViaAttach       string
+	idViaKeepAlive    string
+	idViaPostMetric   string
+	idViaPostLogEvent string
+
 	done       chan struct{}
 	attaches   chan *telemetry_edge.EnvoySummary
 	keepAlives chan *telemetry_edge.KeepAliveRequest
@@ -55,22 +61,34 @@ func NewTestingAmbassadorService(done chan struct{}) *TestingAmbassadorService {
 }
 
 func (s *TestingAmbassadorService) AttachEnvoy(summary *telemetry_edge.EnvoySummary, resp telemetry_edge.TelemetryAmbassador_AttachEnvoyServer) error {
+	if md, ok := metadata.FromIncomingContext(resp.Context()); ok {
+		s.idViaAttach = md.Get(ambassador.EnvoyIdHeader)[0]
+	}
 	s.attaches <- summary
 	<-s.done
 	return nil
 }
 
 func (s *TestingAmbassadorService) KeepAlive(ctx netContext.Context, req *telemetry_edge.KeepAliveRequest) (*telemetry_edge.KeepAliveResponse, error) {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		s.idViaKeepAlive = md.Get(ambassador.EnvoyIdHeader)[0]
+	}
 	s.keepAlives <- req
 	return &telemetry_edge.KeepAliveResponse{}, nil
 }
 
 func (s *TestingAmbassadorService) PostLogEvent(ctx netContext.Context, log *telemetry_edge.LogEvent) (*telemetry_edge.PostLogEventResponse, error) {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		s.idViaPostLogEvent = md.Get(ambassador.EnvoyIdHeader)[0]
+	}
 	s.logs <- log
 	return &telemetry_edge.PostLogEventResponse{}, nil
 }
 
 func (s *TestingAmbassadorService) PostMetric(ctx netContext.Context, metric *telemetry_edge.PostedMetric) (*telemetry_edge.PostMetricResponse, error) {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		s.idViaPostMetric = md.Get(ambassador.EnvoyIdHeader)[0]
+	}
 	s.metrics <- metric
 	return &telemetry_edge.PostMetricResponse{}, nil
 }
@@ -113,6 +131,7 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	select {
 	case summary := <-ambassadorService.attaches:
 		assert.Equal(t, "id-1", summary.InstanceId)
+		assert.Equal(t, "id-1", ambassadorService.idViaAttach)
 	case <-time.After(500 * time.Millisecond):
 		t.Error("did not see attachment in time")
 	}
@@ -120,6 +139,7 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	select {
 	case <-ambassadorService.keepAlives:
 		// good
+		assert.Equal(t, "id-1", ambassadorService.idViaKeepAlive)
 	case <-time.After(100 * time.Millisecond):
 		t.Error("did not see keep alive in time")
 	}
@@ -140,8 +160,8 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 
 	done := make(chan struct{}, 1)
 	defer close(done)
-	ambassadorServer := NewTestingAmbassadorService(done)
-	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorServer)
+	ambassadorService := NewTestingAmbassadorService(done)
+	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
 
 	go grpcServer.Serve(listener)
 	defer grpcServer.Stop()
@@ -160,7 +180,7 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	defer cancel()
 
 	select {
-	case <-ambassadorServer.attaches:
+	case <-ambassadorService.attaches:
 		//continue
 	case <-time.After(500 * time.Millisecond):
 		t.Log("did not see attachment in time")
@@ -183,9 +203,66 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	egressConnection.PostMetric(metric)
 
 	select {
-	case postedMetric := <-ambassadorServer.metrics:
+	case postedMetric := <-ambassadorService.metrics:
 		assert.Equal(t, "id-1", postedMetric.InstanceId)
 		assert.Equal(t, "cpu", postedMetric.Metric.GetNameTagValue().Name)
+		assert.Equal(t, "id-1", ambassadorService.idViaPostMetric)
+
+	case <-time.After(100 * time.Millisecond):
+		t.Error("did not see posted metric in time")
+	}
+}
+
+func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	ambassadorPort, err := freeport.GetFreePort()
+	require.NoError(t, err)
+
+	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
+	listener, err := net.Listen("tcp", ambassadorAddr)
+	require.NoError(t, err)
+
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+
+	done := make(chan struct{}, 1)
+	defer close(done)
+	ambassadorService := NewTestingAmbassadorService(done)
+	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
+
+	go grpcServer.Serve(listener)
+	defer grpcServer.Stop()
+
+	idGenerator := NewMockIdGenerator()
+	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
+
+	mockAgentsRunner := NewMockRouter()
+	viper.Set(config.AmbassadorAddress, ambassadorAddr)
+	viper.Set("tls.disabled", true)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, idGenerator)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT})
+	defer cancel()
+
+	select {
+	case <-ambassadorService.attaches:
+		//continue
+	case <-time.After(500 * time.Millisecond):
+		t.Log("did not see attachment in time")
+		t.FailNow()
+	}
+
+	egressConnection.PostLogEvent(telemetry_edge.AgentType_FILEBEAT, `{"testing":"value"}`)
+
+	select {
+	case logEvent := <-ambassadorService.logs:
+		assert.Equal(t, "id-1", logEvent.InstanceId)
+		assert.Equal(t, telemetry_edge.AgentType_FILEBEAT, logEvent.AgentType)
+		assert.Equal(t, `{"testing":"value"}`, logEvent.JsonContent)
+		assert.Equal(t, "id-1", ambassadorService.idViaPostLogEvent)
 
 	case <-time.After(100 * time.Millisecond):
 		t.Error("did not see posted metric in time")

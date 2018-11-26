@@ -36,7 +36,7 @@ test: clean generate
 	go test ./...
 
 .PHONY: test-verbose
-test-verbose: generate
+test-verbose: clean generate
 	go test -v ./...
 
 test-report-junit: generate

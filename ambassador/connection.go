@@ -33,8 +33,13 @@ import (
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"strings"
 	"time"
+)
+
+const (
+	EnvoyIdHeader = "x-envoy-id"
 )
 
 type EgressConnection interface {
@@ -72,6 +77,8 @@ type StandardEgressConnection struct {
 	supportedAgents   []telemetry_edge.AgentType
 	idGenerator       IdGenerator
 	labels            map[string]string
+	// outgoingContext is used by gRPC client calls to build the final call context
+	outgoingContext context.Context
 }
 
 func init() {
@@ -152,8 +159,11 @@ func (c *StandardEgressConnection) attach() error {
 
 	c.client = telemetry_edge.NewTelemetryAmbassadorClient(conn)
 	c.instanceId = c.idGenerator.Generate()
+	callMetadata := metadata.Pairs(EnvoyIdHeader, c.instanceId)
 
-	connCtx, cancelFunc := context.WithCancel(c.ctx)
+	cancelCtx, cancelFunc := context.WithCancel(c.ctx)
+	callCtx := metadata.NewOutgoingContext(cancelCtx, callMetadata)
+	c.outgoingContext = callCtx
 
 	envoySummary := &telemetry_edge.EnvoySummary{
 		InstanceId:      c.instanceId,
@@ -162,19 +172,19 @@ func (c *StandardEgressConnection) attach() error {
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
 
-	instructions, err := c.client.AttachEnvoy(connCtx, envoySummary)
+	instructions, err := c.client.AttachEnvoy(callCtx, envoySummary)
 	if err != nil {
 		return errors.Wrap(err, "failed to attach Envoy")
 	}
 
 	errChan := make(chan error, 10)
 
-	go c.watchForInstructions(connCtx, errChan, instructions)
-	go c.sendKeepAlives(connCtx, errChan)
+	go c.watchForInstructions(cancelCtx, errChan, instructions)
+	go c.sendKeepAlives(callCtx, errChan)
 
 	for {
 		select {
-		case <-connCtx.Done():
+		case <-cancelCtx.Done():
 			err := instructions.CloseSend()
 			if err != nil {
 				log.WithError(err).Warn("closing send side of instructions stream")
@@ -189,7 +199,7 @@ func (c *StandardEgressConnection) attach() error {
 }
 
 func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
-	callCtx, callCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+	callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
 	defer callCancel()
 
 	log.Debug("posting log event")
@@ -204,7 +214,7 @@ func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentTy
 }
 
 func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
-	callCtx, callCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+	callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
 	defer callCancel()
 
 	log.WithField("metric", metric).Debug("posting metric")
