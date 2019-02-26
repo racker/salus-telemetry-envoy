@@ -14,5 +14,4 @@ steps:
   - id: UPLOAD_RESULTS
     name: 'gcr.io/cloud-builders/gsutil'
     args: ['cp', 'test-results/report.xml', "gs://salus-cache/salus-telemetry-envoy-test-results/report-${BUILD_ID}.xml"]
-    waitFor: ['GO_TEST']
 
