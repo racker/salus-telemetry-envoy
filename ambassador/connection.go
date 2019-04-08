@@ -198,6 +198,7 @@ func (c *StandardEgressConnection) attach() error {
 		SupportedAgents: c.supportedAgents,
 		Labels:          c.labels,
 		ResourceId:      c.resourceId,
+		Zone:            viper.GetString(config.Zone),
 	}
 	log.WithField("summary", envoySummary).Info("attaching")
 

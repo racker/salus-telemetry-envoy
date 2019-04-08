@@ -119,6 +119,7 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 
 	mockAgentsRunner := NewMockRouter()
 	viper.Set(config.ResourceId, "ourResourceId")
+	viper.Set(config.Zone, "myZone")
 	viper.Set(config.AmbassadorAddress, ambassadorAddr)
 	viper.Set("tls.disabled", true)
 	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
@@ -133,6 +134,7 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	case summary := <-ambassadorService.attaches:
 		assert.Equal(t, "ourResourceId", summary.ResourceId)
 		assert.Equal(t, "id-1", ambassadorService.idViaAttach)
+		assert.Equal(t, "myZone", summary.Zone)
 	case <-time.After(500 * time.Millisecond):
 		t.Error("did not see attachment in time")
 	}

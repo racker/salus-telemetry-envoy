@@ -24,4 +24,5 @@ const (
 	IngestTelegrafJsonBind = "ingest.telegraf.json.bind"
 	AmbassadorAddress      = "ambassador.address"
 	ResourceId             = "resource_id"
+	Zone                   = "zone"
 )

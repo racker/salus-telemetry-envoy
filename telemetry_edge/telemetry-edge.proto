@@ -16,6 +16,8 @@ message EnvoySummary {
     map<string, string> labels = 3;
 
     string resourceId = 4;
+
+    string zone = 5;
 }
 
 enum AgentType {
