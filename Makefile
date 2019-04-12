@@ -35,6 +35,10 @@ clean:
 test: clean generate
 	go test ./...
 
+.PHONY: retest
+retest:
+	go test ./...
+
 .PHONY: test-verbose
 test-verbose: clean generate
 	go test -v ./...

@@ -153,15 +153,25 @@ func fileExists(file string) bool {
 // handleContentConfigurationOp handles agent config operations that work with content simply written to
 // the file named by configInstancePath
 // Returns true if the configuration was applied
-func handleContentConfigurationOp(op *telemetry_edge.ConfigurationOp, configInstancePath string) bool {
+func handleContentConfigurationOp(op *telemetry_edge.ConfigurationOp, configInstancePath string, conversion Conversion) bool {
 	switch op.GetType() {
 	case telemetry_edge.ConfigurationOp_CREATE, telemetry_edge.ConfigurationOp_MODIFY:
-		tomlConfig, err := ConvertJsonToToml(op.GetContent())
-		if err != nil {
-			log.WithError(err).WithField("op", op).Warn("failed to convert config blob to TOML")
-			return false
+
+		var finalConfig []byte
+		var err error
+
+		switch conversion {
+		case ConversionNone:
+			finalConfig = []byte(op.GetContent())
+		case ConversionJsonToToml:
+			finalConfig, err = ConvertJsonToToml(op.GetContent())
+			if err != nil {
+				log.WithError(err).WithField("op", op).Warn("failed to convert config blob to TOML")
+				return false
+			}
 		}
-		err = ioutil.WriteFile(configInstancePath, tomlConfig, configFilePerms)
+
+		err = ioutil.WriteFile(configInstancePath, finalConfig, configFilePerms)
 		if err != nil {
 			log.WithError(err).WithField("op", op).Warn("failed to process telegraf config operation")
 		} else {

@@ -25,6 +25,13 @@ import (
 	"strings"
 )
 
+type Conversion int
+
+const (
+	ConversionNone = iota
+	ConversionJsonToToml
+)
+
 func ConvertJsonToToml(configJson string) ([]byte, error) {
 
 	jsonDecoder := json.NewDecoder(strings.NewReader(configJson))

@@ -66,7 +66,7 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 					{
 						Id:      "a-b-c",
 						Type:    tt.opType,
-						Content: "configuration content",
+						Content: "{\"type\":\"mem\"}",
 					},
 				},
 			}
@@ -89,7 +89,7 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 					instanceConfigs++
 					content, err := ioutil.ReadFile(path)
 					require.NoError(t, err)
-					assert.Equal(t, "configuration content", string(content))
+					assert.Equal(t, "[inputs]\n\n  [[inputs.mem]]\n", string(content))
 
 					assert.Equal(t, "config.d", filepath.Base(filepath.Dir(path)))
 				}
@@ -160,7 +160,7 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 		Operations: []*telemetry_edge.ConfigurationOp{
 			{
 				Id:      "1",
-				Content: "created", // content doesn't matter since command running is mocked
+				Content: "{\"type\":\"mem\"}",
 				Type:    telemetry_edge.ConfigurationOp_CREATE,
 			},
 		},
@@ -202,7 +202,7 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 		Operations: []*telemetry_edge.ConfigurationOp{
 			{
 				Id:      "1",
-				Content: "modified",
+				Content: "{\"type\":\"mem\"}",
 				Type:    telemetry_edge.ConfigurationOp_MODIFY,
 			},
 		},

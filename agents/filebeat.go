@@ -136,7 +136,7 @@ func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstruct
 
 		configInstancePath := filepath.Join(configsPath, fmt.Sprintf("%s.yml", op.GetId()))
 
-		if handleContentConfigurationOp(op, configInstancePath) {
+		if handleContentConfigurationOp(op, configInstancePath, ConversionNone) {
 			applied++
 		}
 	}

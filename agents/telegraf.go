@@ -105,7 +105,7 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 
 		configInstancePath := filepath.Join(configsPath, fmt.Sprintf("%s.conf", op.GetId()))
 
-		if handleContentConfigurationOp(op, configInstancePath) {
+		if handleContentConfigurationOp(op, configInstancePath, ConversionJsonToToml) {
 			applied++
 		}
 	}
