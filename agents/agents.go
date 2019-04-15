@@ -163,8 +163,8 @@ func handleContentConfigurationOp(op *telemetry_edge.ConfigurationOp, configInst
 		switch conversion {
 		case ConversionNone:
 			finalConfig = []byte(op.GetContent())
-		case ConversionJsonToToml:
-			finalConfig, err = ConvertJsonToToml(op.GetContent())
+		case ConversionJsonToTelegrafToml:
+			finalConfig, err = ConvertJsonToTelegrafToml(op.GetContent(), op.ExtraLabels)
 			if err != nil {
 				log.WithError(err).WithField("op", op).Warn("failed to convert config blob to TOML")
 				return false

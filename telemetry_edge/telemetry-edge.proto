@@ -70,6 +70,8 @@ message ConfigurationOp {
     }
     Type type = 3;
     string content = 4;
+    // conveys extra labels/tags that should be associated with the generated measurements
+    map<string,string> extraLabels = 5;
 }
 
 // mainly used to test the ambassador->envoy liveness of the channel, but could eventually

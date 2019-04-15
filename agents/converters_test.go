@@ -31,12 +31,16 @@ func TestConvertJsonToToml(t *testing.T) {
 	// NOTE: the given JSON content is provided by the testdata/TestConvertJsonToToml_{name}.json files
 	// NOTE: the expected TOML content is provided by the testdata/TestConvertJsonToToml_{name}.toml files
 	tests := []struct {
-		name string
+		name        string
+		extraLabels map[string]string
 	}{
 		{name: "cpu"},
 		{name: "disk"},
 		{name: "diskio"},
 		{name: "mem"},
+		{name: "ping", extraLabels: map[string]string{
+			"target_tenant": "t-1",
+		}},
 	}
 
 	for _, tc := range tests {
@@ -49,7 +53,7 @@ func TestConvertJsonToToml(t *testing.T) {
 			jsonBytes, err := ioutil.ReadAll(jsonFile)
 			require.NoError(t, err)
 
-			result, err := agents.ConvertJsonToToml(string(jsonBytes))
+			result, err := agents.ConvertJsonToTelegrafToml(string(jsonBytes), tc.extraLabels)
 			require.NoError(t, err)
 
 			expectedFile, err := os.Open(path.Join("testdata",
