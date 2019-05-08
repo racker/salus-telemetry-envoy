@@ -32,7 +32,7 @@ const (
 	// This prefix will be used to qualify labels that are discovered by the
 	// Envoy and differentiate those from the user configured labels.
 	DiscoveredPrefix = "discovered"
-	PrefixDelimiter  = "."
+	PrefixDelimiter  = "_"
 )
 
 var (

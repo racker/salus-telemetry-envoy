@@ -37,12 +37,12 @@ func TestComputeLabels(t *testing.T) {
 		wantErr   bool
 		viperYaml string
 	}{
-		{name: "no config", wantKeys: []string{"discovered.os", "discovered.hostname", "discovered.arch"}},
-		{name: "with labels config", wantKeys: []string{"discovered.os", "discovered.hostname", "discovered.arch", "env"},
+		{name: "no config", wantKeys: []string{"discovered_os", "discovered_hostname", "discovered_arch"}},
+		{name: "with labels config", wantKeys: []string{"discovered_os", "discovered_hostname", "discovered_arch", "env"},
 			want:      map[string]string{"env": "prod"},
 			viperYaml: "labels:\n  env: prod",
 		},
-		{name: "attempted override with config", wantKeys: []string{"discovered.os", "discovered.hostname", "hostname", "discovered.arch"},
+		{name: "attempted override with config", wantKeys: []string{"discovered_os", "discovered_hostname", "hostname", "discovered_arch"},
 			want:      map[string]string{"hostname": "hostA"},
 			viperYaml: "labels:\n  hostname: hostA",
 		},
@@ -82,10 +82,10 @@ func TestComputeLabels_NamespaceConflict(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(strings.NewReader(
-		"labels:\n  discovered.hostname: hostA"))
+		"labels:\n  discovered_hostname: hostA"))
 	require.NoError(t, err)
 
 	_, err = config.ComputeLabels()
-	expectedErr := fmt.Sprintf("configured label '%s' conflicts with a system prefix", "discovered.hostname")
+	expectedErr := fmt.Sprintf("configured label '%s' conflicts with a system prefix", "discovered_hostname")
 	assert.EqualError(t, err, expectedErr, "Expected error about conflicting namespace")
 }
