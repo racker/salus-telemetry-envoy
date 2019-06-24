@@ -33,6 +33,7 @@ nfpm:
   homepage: https://www.rackspace.com/
   description: Monitoring application which submits system metrics for further analysis.
   license: Apache 2.0
+  maintainer: monitoring@rackspace.com
   formats:
     - deb
     - rpm
