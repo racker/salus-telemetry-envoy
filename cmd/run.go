@@ -28,6 +28,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var runCmd = &cobra.Command{
@@ -78,6 +79,8 @@ func handleInterrupts(body func(ctx context.Context)) {
 			log.Info("cancelling application context")
 			cancel()
 		case <-rootCtx.Done():
+			// allow for agent processes to be notified
+			time.Sleep(1 * time.Second)
 			os.Exit(0)
 		}
 	}
