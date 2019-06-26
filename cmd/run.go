@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/viper"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 var runCmd = &cobra.Command{
@@ -65,7 +66,7 @@ var runCmd = &cobra.Command{
 
 func handleInterrupts(body func(ctx context.Context)) {
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, os.Interrupt, os.Kill, syscall.SIGTERM)
 
 	rootCtx, cancel := context.WithCancel(context.Background())
 
