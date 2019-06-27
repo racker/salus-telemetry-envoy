@@ -26,12 +26,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 )
 
 type StandardAgentsRouter struct {
 	DataPath string
 
 	ctx context.Context
+	// mutetx is used to ensure ProcessInstall and ProcessConfigure are not called concurrently
+	mutetx sync.Mutex
 }
 
 func NewAgentsRunner() (Router, error) {
@@ -80,6 +83,9 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 		log.WithField("type", agentType).Warn("no specific runner for agent type")
 		return
 	}
+
+	ar.mutetx.Lock()
+	defer ar.mutetx.Unlock()
 
 	agentVersion := install.Agent.Version
 	agentBasePath := path.Join(ar.DataPath, agentsSubpath, agentType.String())
@@ -145,6 +151,9 @@ func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.Envoy
 
 	agentType := configure.GetAgentType()
 	if specificRunner, exists := specificAgentRunners[agentType]; exists {
+
+		ar.mutetx.Lock()
+		defer ar.mutetx.Unlock()
 
 		err := specificRunner.ProcessConfig(configure)
 		if err != nil {
