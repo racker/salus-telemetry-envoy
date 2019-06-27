@@ -77,7 +77,7 @@ func (h *StandardCommandHandler) StartAgentCommand(runningContext *AgentRunningC
 
 	waitForChan, err := h.setupCommandLogging(cmdCtx, agentType, cmd, waitFor)
 	if err != nil {
-		return errors.New("logging and watching command output")
+		return errors.Wrap(err, "failed to setup command logging")
 	}
 
 	runningContext.stopping = false
