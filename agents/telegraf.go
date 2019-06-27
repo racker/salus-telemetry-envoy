@@ -40,6 +40,8 @@ const (
 var telegrafMainConfigTmpl = template.Must(template.New("telegrafMain").Parse(`
 [agent]
   interval = "10s"
+  flush_interval = "10s"
+  flush_jitter = "2s"
   omit_hostname = true
 [[outputs.socket_writer]]
   address = "tcp://{{.IngestHost}}:{{.IngestPort}}"
