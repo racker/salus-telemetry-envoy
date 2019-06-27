@@ -121,6 +121,7 @@ func downloadExtractTarGz(outputPath, url string, exePath string) error {
 				log.WithError(err).Error("unable to open file for writing")
 				continue
 			}
+			defer file.Close()
 
 			_, err = io.Copy(file, tarReader)
 			if err != nil {
