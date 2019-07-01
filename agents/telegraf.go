@@ -47,6 +47,8 @@ var telegrafMainConfigTmpl = template.Must(template.New("telegrafMain").Parse(`
   address = "tcp://{{.IngestHost}}:{{.IngestPort}}"
   data_format = "json"
   json_timestamp_units = "1ms"
+[[inputs.internal]]
+  collect_memstats = false
 `))
 
 var (
@@ -64,6 +66,22 @@ type TelegrafRunner struct {
 	basePath       string
 	running        *AgentRunningContext
 	commandHandler CommandHandler
+}
+
+func (tr *TelegrafRunner) PurgeConfig() error {
+	configsPath := path.Join(tr.basePath, configsDirSubpath)
+	err := os.RemoveAll(configsPath)
+	if err != nil {
+		return errors.Wrap(err, "TelegrafRunner failed to purge configs directory")
+	}
+
+	mainConfigPath := path.Join(tr.basePath, telegrafMainConfigFilename)
+	err = os.Remove(mainConfigPath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, "TelegrafRunner failed to remove main config")
+	}
+
+	return nil
 }
 
 func init() {
@@ -87,20 +105,12 @@ func (tr *TelegrafRunner) SetCommandHandler(handler CommandHandler) {
 }
 
 func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
-	configsPath := path.Join(tr.basePath, configsDirSubpath)
-	err := os.MkdirAll(configsPath, dirPerms)
+	err := tr.ensureMainConfig()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create configs path for telegraf: %v", configsPath)
+		return err
 	}
 
-	mainConfigPath := path.Join(tr.basePath, telegrafMainConfigFilename)
-	if !fileExists(mainConfigPath) {
-		err = tr.createMainConfig(mainConfigPath)
-		if err != nil {
-			return errors.Wrap(err, "failed to create main telegraf config")
-		}
-	}
-
+	configsPath := path.Join(tr.basePath, configsDirSubpath)
 	applied := 0
 	for _, op := range configure.GetOperations() {
 		log.WithField("op", op).Debug("processing telegraf config operation")
@@ -158,6 +168,24 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 		Info("started agent")
 }
 
+func (tr *TelegrafRunner) ensureMainConfig() error {
+	mainConfigPath := path.Join(tr.basePath, telegrafMainConfigFilename)
+	if !fileExists(mainConfigPath) {
+		err := tr.createMainConfig(mainConfigPath)
+		if err != nil {
+			return errors.Wrap(err, "failed to create main telegraf config")
+		}
+	}
+
+	configsPath := path.Join(tr.basePath, configsDirSubpath)
+	err := os.MkdirAll(configsPath, dirPerms)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create configs path for telegraf: %v", configsPath)
+	}
+
+	return nil
+}
+
 // exePath returns path to executable relative to baseDir
 func (tr *TelegrafRunner) exePath() string {
 	return filepath.Join(currentVerLink, binSubpath, "telegraf")
@@ -169,6 +197,8 @@ func (tr *TelegrafRunner) Stop() {
 }
 
 func (tr *TelegrafRunner) createMainConfig(mainConfigPath string) error {
+	log.WithField("path", mainConfigPath).Debug("creating main telegraf config file")
+
 	file, err := os.OpenFile(mainConfigPath, os.O_CREATE|os.O_RDWR, configFilePerms)
 	if err != nil {
 		return errors.Wrap(err, "unable to open main telegraf config file")
@@ -198,40 +228,11 @@ func (tr *TelegrafRunner) handleConfigReload() {
 
 func (tr *TelegrafRunner) hasRequiredPaths() bool {
 
-	mainConfigPath := path.Join(tr.basePath, telegrafMainConfigFilename)
-	if !fileExists(mainConfigPath) {
-		return false
-	}
-
-	configsPath := filepath.Join(tr.basePath, configsDirSubpath)
-	if !fileExists(configsPath) {
-		log.WithField("path", configsPath).Debug("missing configs path")
-		return false
-	}
-
-	configsDir, err := os.Open(configsPath)
+	err := tr.ensureMainConfig()
 	if err != nil {
-		log.WithError(err).Warn("unable to open configs directory for listing")
-		return false
-	}
-	//noinspection GoUnhandledErrorResult
-	defer configsDir.Close()
-
-	names, err := configsDir.Readdirnames(0)
-	if err != nil {
-		log.WithError(err).WithField("path", configsPath).
-			Warn("unable to read files in configs directory")
-		return false
-	}
-
-	hasConfigs := false
-	for _, name := range names {
-		if path.Ext(name) == ".conf" {
-			hasConfigs = true
-		}
-	}
-	if !hasConfigs {
-		log.WithField("path", configsPath).Debug("missing config files")
+		log.WithError(err).
+			WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
+			Warn("failed to setup main config")
 		return false
 	}
 

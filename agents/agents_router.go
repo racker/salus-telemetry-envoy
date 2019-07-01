@@ -44,8 +44,6 @@ func NewAgentsRunner() (Router, error) {
 
 	commandHandler := NewCommandHandler()
 
-	ar.PurgeAgentConfigs()
-
 	for agentType, runner := range specificAgentRunners {
 
 		agentBasePath := filepath.Join(ar.DataPath, agentsSubpath, agentType.String())
@@ -55,6 +53,11 @@ func NewAgentsRunner() (Router, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "loading agent runner: %T", runner)
 		}
+	}
+
+	err := ar.PurgeAgentConfigs()
+	if err != nil {
+		return nil, err
 	}
 
 	return ar, nil
@@ -170,13 +173,13 @@ func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.Envoy
 	}
 }
 
-func (ar *StandardAgentsRouter) PurgeAgentConfigs() {
-	for agentType := range specificAgentRunners {
-		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType.String(), configsDirSubpath)
-		log.WithField("path", configsPath).Debug("purging agent config directory")
-		err := os.RemoveAll(configsPath)
+func (ar *StandardAgentsRouter) PurgeAgentConfigs() error {
+	for agentType, specificRunner := range specificAgentRunners {
+		log.WithField("agentType", agentType).Debug("purging config")
+		err := specificRunner.PurgeConfig()
 		if err != nil {
-			log.WithError(err).WithField("path", configsPath).Warn("failed to purge configs directory")
+			return err
 		}
 	}
+	return nil
 }
