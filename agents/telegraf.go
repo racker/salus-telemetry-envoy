@@ -22,9 +22,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"net"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -66,6 +68,16 @@ type TelegrafRunner struct {
 	basePath       string
 	running        *AgentRunningContext
 	commandHandler CommandHandler
+	configServerPort     int
+	configServerId  uuid.UUID
+	configServerURL string
+	tomlHeader string
+	tomlData map[string]string
+	tomlPage string
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Hi there, GBJ loves %s!", r.URL.Path[1:])
 }
 
 func (tr *TelegrafRunner) PurgeConfig() error {
@@ -97,6 +109,21 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.ingestHost = host
 	tr.ingestPort = port
 	tr.basePath = agentBasePath
+
+	http.HandleFunc("/", handler)
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Using port:", listener.Addr().(*net.TCPAddr).Port)
+	tr.configServerPort = listener.Addr().(*net.TCPAddr).Port
+	tr.configServerId = uuid.NewV4()
+	tr.configServerToken = uuid.NewV4()
+	tr.configServerURL = fmt.Sprint("localhost:%d/%s", tr.configServerPort, tr.configServerId.String())
+
+	go http.Serve(listener, nil)
+
 	return nil
 }
 
@@ -147,8 +174,7 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 	runningContext := tr.commandHandler.CreateContext(ctx,
 		telemetry_edge.AgentType_TELEGRAF,
 		tr.exePath(), tr.basePath,
-		"--config", telegrafMainConfigFilename,
-		"--config-directory", configsDirSubpath)
+		"--config", tr.configServerURL)
 
 	err := tr.commandHandler.StartAgentCommand(runningContext,
 		telemetry_edge.AgentType_TELEGRAF,
