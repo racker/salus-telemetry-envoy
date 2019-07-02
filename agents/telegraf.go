@@ -123,7 +123,10 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.configServerToken = uuid.NewV4()
 	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", tr.configServerPort, tr.configServerId.String())
 	tr.tomlConfigs = make(map[string][]byte)
-	tr.tomlMainConfig = nil
+	mainConfig, err := tr.createMainConfig()
+
+	tr.tomlMainConfig = mainConfig
+	tr.tomlWebPage = mainConfig
 
 	go http.Serve(listener, nil)
 
