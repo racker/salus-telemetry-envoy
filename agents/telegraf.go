@@ -17,6 +17,7 @@
 package agents
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
@@ -71,13 +72,11 @@ type TelegrafRunner struct {
 	configServerPort     int
 	configServerId  uuid.UUID
 	configServerURL string
-	tomlHeader string
-	tomlData map[string]string
-	tomlPage string
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, GBJ loves %s!", r.URL.Path[1:])
+	configServerToken uuid.UUID
+	tomlMainConfig []byte
+	tomlConfigs map[string][]byte
+	tomlWebPage []byte
+	httpHandler func(w http.ResponseWriter, r *http.Request)
 }
 
 func (tr *TelegrafRunner) PurgeConfig() error {
@@ -109,8 +108,10 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.ingestHost = host
 	tr.ingestPort = port
 	tr.basePath = agentBasePath
-
-	http.HandleFunc("/", handler)
+	tr.httpHandler = func(w http.ResponseWriter, r *http.Request) {
+		w.Write(tr.tomlWebPage)
+	}
+	http.HandleFunc("/", tr.httpHandler)
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		panic(err)
@@ -120,7 +121,9 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.configServerPort = listener.Addr().(*net.TCPAddr).Port
 	tr.configServerId = uuid.NewV4()
 	tr.configServerToken = uuid.NewV4()
-	tr.configServerURL = fmt.Sprint("localhost:%d/%s", tr.configServerPort, tr.configServerId.String())
+	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", tr.configServerPort, tr.configServerId.String())
+	tr.tomlConfigs = make(map[string][]byte)
+	tr.tomlMainConfig = nil
 
 	go http.Serve(listener, nil)
 
@@ -137,14 +140,11 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 		return err
 	}
 
-	configsPath := path.Join(tr.basePath, configsDirSubpath)
 	applied := 0
 	for _, op := range configure.GetOperations() {
 		log.WithField("op", op).Debug("processing telegraf config operation")
 
-		configInstancePath := filepath.Join(configsPath, fmt.Sprintf("%s.conf", op.GetId()))
-
-		if handleContentConfigurationOp(op, configInstancePath, ConversionJsonToTelegrafToml) {
+		if tr.handleTelegrafConfigurationOp(op) {
 			applied++
 		}
 	}
@@ -153,7 +153,43 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 		return &noAppliedConfigsError{}
 	}
 
+	tr.tomlWebPage = tr.concatConfigs()
 	return nil
+}
+
+func (tr *TelegrafRunner) concatConfigs() []byte {
+	configs := tr.tomlMainConfig
+	for _, v := range tr.tomlConfigs {
+		configs = append(configs, v...)
+	}
+	return configs
+}
+
+func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.ConfigurationOp) bool {
+	switch op.GetType() {
+	case telemetry_edge.ConfigurationOp_CREATE, telemetry_edge.ConfigurationOp_MODIFY:
+
+		var finalConfig []byte
+		var err error
+		finalConfig, err = ConvertJsonToTelegrafToml(op.GetContent(), op.ExtraLabels)
+		if err != nil {
+			log.WithError(err).WithField("op", op).Warn("failed to convert config blob to TOML")
+			return false
+			}
+		tr.tomlConfigs[op.GetId()] = finalConfig
+
+		return true
+
+		case telemetry_edge.ConfigurationOp_REMOVE:
+			if _, ok := tr.tomlConfigs[op.GetId()]; ok {
+				delete(tr.tomlConfigs, op.GetId())
+				return true
+			}
+			return false
+
+			}
+
+	return false
 }
 
 func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
@@ -195,18 +231,12 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 }
 
 func (tr *TelegrafRunner) ensureMainConfig() error {
-	mainConfigPath := path.Join(tr.basePath, telegrafMainConfigFilename)
-	if !fileExists(mainConfigPath) {
-		err := tr.createMainConfig(mainConfigPath)
+	if tr.tomlMainConfig == nil {
+		mainConfig, err := tr.createMainConfig()
 		if err != nil {
 			return errors.Wrap(err, "failed to create main telegraf config")
 		}
-	}
-
-	configsPath := path.Join(tr.basePath, configsDirSubpath)
-	err := os.MkdirAll(configsPath, dirPerms)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create configs path for telegraf: %v", configsPath)
+		tr.tomlMainConfig = mainConfig
 	}
 
 	return nil
@@ -222,27 +252,19 @@ func (tr *TelegrafRunner) Stop() {
 	tr.running = nil
 }
 
-func (tr *TelegrafRunner) createMainConfig(mainConfigPath string) error {
-	log.WithField("path", mainConfigPath).Debug("creating main telegraf config file")
-
-	file, err := os.OpenFile(mainConfigPath, os.O_CREATE|os.O_RDWR, configFilePerms)
-	if err != nil {
-		return errors.Wrap(err, "unable to open main telegraf config file")
-	}
-	//noinspection GoUnhandledErrorResult
-	defer file.Close()
-
+func (tr *TelegrafRunner) createMainConfig() ([]byte, error) {
 	data := &telegrafMainConfigData{
 		IngestHost: tr.ingestHost,
 		IngestPort: tr.ingestPort,
 	}
+	var b bytes.Buffer
 
-	err = telegrafMainConfigTmpl.Execute(file, data)
+	err := telegrafMainConfigTmpl.Execute(&b, data)
 	if err != nil {
-		return errors.Wrap(err, "failed to execute telegraf main config template")
+		return nil, errors.Wrap(err, "failed to execute telegraf main config template")
 	}
 
-	return nil
+	return b.Bytes(), nil
 }
 
 func (tr *TelegrafRunner) handleConfigReload() {
