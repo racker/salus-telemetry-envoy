@@ -30,16 +30,23 @@ import (
 )
 
 type StandardAgentsRouter struct {
-	DataPath string
+	DataPath   string
+	detachChan <-chan struct{}
 
 	ctx context.Context
 	// mutetx is used to ensure ProcessInstall and ProcessConfigure are not called concurrently
 	mutetx sync.Mutex
 }
 
-func NewAgentsRunner() (Router, error) {
+// NewAgentsRunner creates the component that manages the configuration and process lifecycle
+// of the individual agents supported by the Envoy.
+// The detachChan receives a signal when an attachment to an Ambassador is terminated. At that
+// point this agents runner will take care of stopping any running agents and purging configuration
+// in order to guarantee a consistent state at attachment.
+func NewAgentsRunner(detachChan <-chan struct{}) (Router, error) {
 	ar := &StandardAgentsRouter{
-		DataPath: viper.GetString(config.AgentsDataPath),
+		DataPath:   viper.GetString(config.AgentsDataPath),
+		detachChan: detachChan,
 	}
 
 	commandHandler := NewCommandHandler()
@@ -69,12 +76,23 @@ func (ar *StandardAgentsRouter) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ar.ctx.Done():
-			log.Debug("stopping specific runners")
-			for _, specific := range specificAgentRunners {
-				specific.Stop()
-			}
+			ar.stopAll()
 			return
+
+		case <-ar.detachChan:
+			ar.stopAll()
+			err := ar.PurgeAgentConfigs()
+			if err != nil {
+				log.WithError(err).Warn("failed to purge configs while handling detach")
+			}
 		}
+	}
+}
+
+func (ar *StandardAgentsRouter) stopAll() {
+	log.Debug("stopping agent runners")
+	for _, specific := range specificAgentRunners {
+		specific.Stop()
 	}
 }
 

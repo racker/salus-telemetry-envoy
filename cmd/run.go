@@ -38,12 +38,14 @@ var runCmd = &cobra.Command{
 
 		handleInterrupts(func(ctx context.Context) {
 
-			agentsRunner, err := agents.NewAgentsRunner()
+			detachChan := make(chan struct{}, 1)
+
+			agentsRunner, err := agents.NewAgentsRunner(detachChan)
 			if err != nil {
 				log.WithError(err).Fatal("unable to setup agent runner")
 			}
 
-			connection, err := ambassador.NewEgressConnection(agentsRunner, ambassador.NewIdGenerator())
+			connection, err := ambassador.NewEgressConnection(agentsRunner, detachChan, ambassador.NewIdGenerator())
 			if err != nil {
 				log.WithError(err).Fatal("unable to setup ambassador connection")
 			}

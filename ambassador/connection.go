@@ -19,7 +19,6 @@ package ambassador
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/agents"
@@ -70,6 +69,7 @@ type StandardEgressConnection struct {
 	envoyId           string
 	ctx               context.Context
 	agentsRunner      agents.Router
+	detachChan        chan<- struct{}
 	grpcTlsDialOption grpc.DialOption
 	certificate       *tls.Certificate
 	supportedAgents   []telemetry_edge.AgentType
@@ -86,7 +86,10 @@ func init() {
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
-func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (EgressConnection, error) {
+// NewEgressConnection creates the component that manages connections out to a Salus Ambassador.
+// The detachChan provides a signalling mechanism to the agent runner to let is know when an
+// attachment to an Ambassador was terminated.
+func NewEgressConnection(agentsRunner agents.Router, detachChan chan<- struct{}, idGenerator IdGenerator) (EgressConnection, error) {
 	resourceId := viper.GetString(config.ResourceId)
 	if resourceId == "" {
 		return nil, errors.Errorf("Envoy configuration is missing %s", config.ResourceId)
@@ -98,6 +101,7 @@ func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (E
 		GrpcCallLimit:     viper.GetDuration("grpc.callLimit"),
 		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
 		agentsRunner:      agentsRunner,
+		detachChan:        detachChan,
 		idGenerator:       idGenerator,
 		resourceId:        resourceId,
 	}
@@ -215,14 +219,16 @@ func (c *StandardEgressConnection) attach() error {
 	for {
 		select {
 		case <-outgoingCtx.Done():
+			log.Debug("closing attach receiver stream")
 			err := instructions.CloseSend()
 			if err != nil {
 				log.WithError(err).Warn("closing send side of instructions stream")
 			}
-			return fmt.Errorf("closed")
+			return errors.New("closed")
 
 		case err := <-errChan:
-			log.WithError(err).Warn("terminating")
+			log.WithError(err).Warn("terminating connection due to error")
+			c.detachChan <- struct{}{}
 			cancelFunc()
 		}
 	}
