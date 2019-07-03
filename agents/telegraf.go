@@ -109,12 +109,23 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.ingestPort = port
 	tr.basePath = agentBasePath
 	tr.httpHandler = func(w http.ResponseWriter, r *http.Request) {
-		w.Write(tr.tomlWebPage)
+		if r.URL.Path[1:] != tr.configServerId.String() {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Header.Get("authorization") != "Token " + tr.configServerToken.String() {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		_, err = w.Write(tr.tomlWebPage)
+		if err != nil {
+			log.Error("Error writing config page %v", err)
+		}
 	}
 	http.HandleFunc("/", tr.httpHandler)
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
-		panic(err)
+		return errors.Wrap(err, "couldn't create http listener")
 	}
 
 	fmt.Println("Using port:", listener.Addr().(*net.TCPAddr).Port)
@@ -124,13 +135,24 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", tr.configServerPort, tr.configServerId.String())
 	tr.tomlConfigs = make(map[string][]byte)
 	mainConfig, err := tr.createMainConfig()
+	if err != nil {
+		return errors.Wrap(err, "couldn't create main config")
+	}
 
 	tr.tomlMainConfig = mainConfig
 	tr.tomlWebPage = mainConfig
 
-	go http.Serve(listener, nil)
+	go tr.Serve(listener)
+
+	log.Infof("GBJ tr is %v, %v", tr.configServerToken, tr)
 
 	return nil
+}
+
+func (tr *TelegrafRunner) Serve(listener net.Listener) {
+	err := http.Serve(listener, nil)
+	// Note this is probably not the best way to handle webserver failure
+	log.Fatalf("web server error %v", err)
 }
 
 func (tr *TelegrafRunner) SetCommandHandler(handler CommandHandler) {
@@ -214,6 +236,9 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 		telemetry_edge.AgentType_TELEGRAF,
 		tr.exePath(), tr.basePath,
 		"--config", tr.configServerURL)
+
+	// telegraf returns the INFLUX_TOKEN in the http config request header
+	runningContext.AppendEnv("INFLUX_TOKEN=" + tr.configServerToken.String())
 
 	err := tr.commandHandler.StartAgentCommand(runningContext,
 		telemetry_edge.AgentType_TELEGRAF,
