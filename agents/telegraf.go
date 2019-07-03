@@ -65,8 +65,6 @@ type TelegrafRunner struct {
 	running        *AgentRunningContext
 	commandHandler CommandHandler
 	configServerMux *http.ServeMux
-	configServerPort     int
-	configServerId  string
 	configServerURL string
 	configServerToken string
 	tomlMainConfig []byte
@@ -94,11 +92,6 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.ingestPort = port
 	tr.basePath = agentBasePath
 	tr.httpHandler = func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path[1:] != tr.configServerId {
-			http.NotFound(w, r)
-			return
-		}
-
 		if r.Header.Get("authorization") != "Token " + tr.configServerToken {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -109,17 +102,16 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 		}
 	}
 	tr.configServerMux = http.NewServeMux()
-	tr.configServerMux.Handle("/" + tr.configServerId, tr.httpHandler)
+	serverId := uuid.NewV4().String()
+	tr.configServerMux.Handle("/" + serverId, tr.httpHandler)
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create http listener")
 	}
 
-	fmt.Println("GBJ Using port:", listener.Addr().(*net.TCPAddr).Port)
-	tr.configServerPort = listener.Addr().(*net.TCPAddr).Port
-	tr.configServerId = uuid.NewV4().String()
+	listenerPort := listener.Addr().(*net.TCPAddr).Port
 	tr.configServerToken = uuid.NewV4().String()
-	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", tr.configServerPort, tr.configServerId)
+	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", listenerPort, serverId)
 	tr.tomlConfigs = make(map[string][]byte)
 	mainConfig, err := tr.createMainConfig()
 	if err != nil {
