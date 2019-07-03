@@ -122,14 +122,14 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.tomlWebPage = mainConfig
 
 
-	go tr.Serve(listener)
+	go tr.serve(listener)
 
 	log.Infof("GBJ curl -v -H 'authorization: Token %s' %s", tr.configServerToken, tr.configServerURL)
 
 	return nil
 }
 
-func (tr *TelegrafRunner) Serve(listener net.Listener) {
+func (tr *TelegrafRunner) serve(listener net.Listener) {
 	err := http.Serve(listener, tr.configServerMux)
 	// Note this is probably not the best way to handle webserver failure
 	log.Fatalf("web server error %v", err)

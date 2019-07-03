@@ -29,7 +29,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"syscall"
 	"testing"
 )
@@ -71,33 +70,12 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			err = runner.ProcessConfig(configure)
 			require.NoError(t, err)
 
-			var files, mainConfigs, instanceConfigs int
-			err = filepath.Walk(dataPath, func(path string, info os.FileInfo, err error) error {
-				if !info.IsDir() {
-					files++
-				}
-				if filepath.Base(path) == "telegraf.conf" {
-					mainConfigs++
-					content, err := ioutil.ReadFile(path)
-					require.NoError(t, err)
+			content := make([]byte, 2000)
+			runner.GetCurrentConfig().Read(content)
+			assert.Contains(t, string(content), "outputs.socket_writer")
+			assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
 
-					assert.Contains(t, string(content), "outputs.socket_writer")
-					assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
-				} else if filepath.Base(path) == "a-b-c.conf" {
-					instanceConfigs++
-					content, err := ioutil.ReadFile(path)
-					require.NoError(t, err)
-					assert.Equal(t, "[inputs]\n\n  [[inputs.mem]]\n", string(content))
-
-					assert.Equal(t, "config.d", filepath.Base(filepath.Dir(path)))
-				}
-				return nil
-			})
-			require.NoError(t, err)
-			assert.NotZero(t, files)
-			assert.Equal(t, 1, mainConfigs)
-			assert.Equal(t, 1, instanceConfigs)
-
+			assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
 		})
 	}
 }
