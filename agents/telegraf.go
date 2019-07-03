@@ -28,16 +28,11 @@ import (
 	"github.com/spf13/viper"
 	"net"
 	"net/http"
-	"os"
 	"path"
 	"path/filepath"
 	"syscall"
 	"text/template"
 	"time"
-)
-
-const (
-	telegrafMainConfigFilename = "telegraf.conf"
 )
 
 var telegrafMainConfigTmpl = template.Must(template.New("telegrafMain").Parse(`
@@ -70,9 +65,9 @@ type TelegrafRunner struct {
 	running        *AgentRunningContext
 	commandHandler CommandHandler
 	configServerPort     int
-	configServerId  uuid.UUID
+	configServerId  string
 	configServerURL string
-	configServerToken uuid.UUID
+	configServerToken string
 	tomlMainConfig []byte
 	tomlConfigs map[string][]byte
 	tomlWebPage []byte
@@ -80,18 +75,7 @@ type TelegrafRunner struct {
 }
 
 func (tr *TelegrafRunner) PurgeConfig() error {
-	configsPath := path.Join(tr.basePath, configsDirSubpath)
-	err := os.RemoveAll(configsPath)
-	if err != nil {
-		return errors.Wrap(err, "TelegrafRunner failed to purge configs directory")
-	}
-
-	mainConfigPath := path.Join(tr.basePath, telegrafMainConfigFilename)
-	err = os.Remove(mainConfigPath)
-	if err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "TelegrafRunner failed to remove main config")
-	}
-
+	tr.tomlConfigs = make(map[string][]byte)
 	return nil
 }
 
@@ -109,30 +93,26 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.ingestPort = port
 	tr.basePath = agentBasePath
 	tr.httpHandler = func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path[1:] != tr.configServerId.String() {
-			http.NotFound(w, r)
-			return
-		}
-		if r.Header.Get("authorization") != "Token " + tr.configServerToken.String() {
+		if r.Header.Get("authorization") != "Token " + tr.configServerToken {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 		_, err = w.Write(tr.tomlWebPage)
 		if err != nil {
-			log.Error("Error writing config page %v", err)
+			log.Errorf("Error writing config page %v", err)
 		}
 	}
-	http.HandleFunc("/", tr.httpHandler)
+	http.HandleFunc("/" + tr.configServerId, tr.httpHandler)
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create http listener")
 	}
 
-	fmt.Println("Using port:", listener.Addr().(*net.TCPAddr).Port)
+	fmt.Println("GBJ Using port:", listener.Addr().(*net.TCPAddr).Port)
 	tr.configServerPort = listener.Addr().(*net.TCPAddr).Port
-	tr.configServerId = uuid.NewV4()
-	tr.configServerToken = uuid.NewV4()
-	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", tr.configServerPort, tr.configServerId.String())
+	tr.configServerId = uuid.NewV4().String()
+	tr.configServerToken = uuid.NewV4().String()
+	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", tr.configServerPort, tr.configServerId)
 	tr.tomlConfigs = make(map[string][]byte)
 	mainConfig, err := tr.createMainConfig()
 	if err != nil {
@@ -160,11 +140,6 @@ func (tr *TelegrafRunner) SetCommandHandler(handler CommandHandler) {
 }
 
 func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
-	err := tr.ensureMainConfig()
-	if err != nil {
-		return err
-	}
-
 	applied := 0
 	for _, op := range configure.GetOperations() {
 		log.WithField("op", op).Debug("processing telegraf config operation")
@@ -238,7 +213,7 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 		"--config", tr.configServerURL)
 
 	// telegraf returns the INFLUX_TOKEN in the http config request header
-	runningContext.AppendEnv("INFLUX_TOKEN=" + tr.configServerToken.String())
+	runningContext.AppendEnv("INFLUX_TOKEN=" + tr.configServerToken)
 
 	err := tr.commandHandler.StartAgentCommand(runningContext,
 		telemetry_edge.AgentType_TELEGRAF,
@@ -256,18 +231,6 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 	log.WithField("pid", runningContext.Pid()).
 		WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
 		Info("started agent")
-}
-
-func (tr *TelegrafRunner) ensureMainConfig() error {
-	if tr.tomlMainConfig == nil {
-		mainConfig, err := tr.createMainConfig()
-		if err != nil {
-			return errors.Wrap(err, "failed to create main telegraf config")
-		}
-		tr.tomlMainConfig = mainConfig
-	}
-
-	return nil
 }
 
 // exePath returns path to executable relative to baseDir
@@ -303,15 +266,6 @@ func (tr *TelegrafRunner) handleConfigReload() {
 }
 
 func (tr *TelegrafRunner) hasRequiredPaths() bool {
-
-	err := tr.ensureMainConfig()
-	if err != nil {
-		log.WithError(err).
-			WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
-			Warn("failed to setup main config")
-		return false
-	}
-
 	fullExePath := path.Join(tr.basePath, tr.exePath())
 	if !fileExists(fullExePath) {
 		log.WithField("exe", fullExePath).Debug("missing exe")
