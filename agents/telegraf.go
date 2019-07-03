@@ -64,6 +64,7 @@ type TelegrafRunner struct {
 	basePath       string
 	running        *AgentRunningContext
 	commandHandler CommandHandler
+	configServerMux *http.ServeMux
 	configServerPort     int
 	configServerId  string
 	configServerURL string
@@ -71,7 +72,7 @@ type TelegrafRunner struct {
 	tomlMainConfig []byte
 	tomlConfigs map[string][]byte
 	tomlWebPage []byte
-	httpHandler func(w http.ResponseWriter, r *http.Request)
+	httpHandler http.HandlerFunc
 }
 
 func (tr *TelegrafRunner) PurgeConfig() error {
@@ -93,6 +94,11 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.ingestPort = port
 	tr.basePath = agentBasePath
 	tr.httpHandler = func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path[1:] != tr.configServerId {
+			http.NotFound(w, r)
+			return
+		}
+
 		if r.Header.Get("authorization") != "Token " + tr.configServerToken {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -102,7 +108,8 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 			log.Errorf("Error writing config page %v", err)
 		}
 	}
-	http.HandleFunc("/" + tr.configServerId, tr.httpHandler)
+	tr.configServerMux = http.NewServeMux()
+	tr.configServerMux.Handle("/" + tr.configServerId, tr.httpHandler)
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create http listener")
@@ -122,15 +129,16 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.tomlMainConfig = mainConfig
 	tr.tomlWebPage = mainConfig
 
+
 	go tr.Serve(listener)
 
-	log.Infof("GBJ tr is %v, %v", tr.configServerToken, tr)
+	log.Infof("GBJ curl -v -H 'authorization: Token %s' %s", tr.configServerToken, tr.configServerURL)
 
 	return nil
 }
 
 func (tr *TelegrafRunner) Serve(listener net.Listener) {
-	err := http.Serve(listener, nil)
+	err := http.Serve(listener, tr.configServerMux)
 	// Note this is probably not the best way to handle webserver failure
 	log.Fatalf("web server error %v", err)
 }
