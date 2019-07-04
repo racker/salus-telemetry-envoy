@@ -70,11 +70,11 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			err = runner.ProcessConfig(configure)
 			require.NoError(t, err)
 
-			content := make([]byte, 2000)
-			runner.GetCurrentConfig().Read(content)
+			content, err := runner.GetCurrentConfig()
+			require.NoError(t, err)
+
 			assert.Contains(t, string(content), "outputs.socket_writer")
 			assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
-
 			assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
 		})
 	}
@@ -145,9 +145,10 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	}
 	err = telegrafRunner.ProcessConfig(createConfig)
 	require.NoError(t, err)
-	configs, err := ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	content, err := telegrafRunner.GetCurrentConfig()
 	require.NoError(t, err)
-	assert.Len(t, configs, 1)
+	assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
+
 
 	runningContext := agents.CreatePreRunningAgentRunningContext()
 
@@ -187,9 +188,10 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	}
 	err = telegrafRunner.ProcessConfig(modifyConfig)
 	require.NoError(t, err)
-	configs, err = ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	content, err = telegrafRunner.GetCurrentConfig()
 	require.NoError(t, err)
-	assert.Len(t, configs, 1)
+	assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
+
 
 	telegrafRunner.EnsureRunningState(ctx, true)
 
@@ -206,9 +208,9 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	}
 	err = telegrafRunner.ProcessConfig(removeConfig)
 	require.NoError(t, err)
-	configs, err = ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	content, err = telegrafRunner.GetCurrentConfig()
 	require.NoError(t, err)
-	assert.Len(t, configs, 0)
+	assert.NotContains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
 
 	telegrafRunner.EnsureRunningState(ctx, true)
 

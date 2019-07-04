@@ -20,7 +20,7 @@ import (
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -78,10 +78,20 @@ func CreatePreRunningAgentRunningContext() *AgentRunningContext {
 	}
 }
 
-func (tr *TelegrafRunner) GetCurrentConfig() io.Reader {
+func (tr *TelegrafRunner) GetCurrentConfigWithToken(token string) ([]byte, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", tr.configServerURL, nil)
-	req.Header.Add("authorization", "Token " + tr.configServerToken)
-	resp, _ := client.Do(req)
-	return resp.Body
+	req, err := http.NewRequest("GET", tr.configServerURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("authorization", "Token "+ token)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(resp.Body)
+}
+
+func(tr *TelegrafRunner) GetCurrentConfig() ([]byte, error) {
+	return tr.GetCurrentConfigWithToken(tr.configServerToken)
 }
