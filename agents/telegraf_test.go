@@ -157,7 +157,6 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 		matchers.AnyTelemetryEdgeAgentType(),
 		pegomock.AnyString(),
 		pegomock.AnyString(),
-		pegomock.AnyString(), pegomock.AnyString(),
 		pegomock.AnyString(), pegomock.AnyString())).
 		ThenReturn(runningContext)
 
@@ -168,7 +167,6 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 			matchers.EqTelemetryEdgeAgentType(telemetry_edge.AgentType_TELEGRAF),
 			pegomock.EqString("CURRENT/bin/telegraf"),
 			pegomock.EqString(dataPath),
-			pegomock.AnyString(), pegomock.AnyString(),
 			pegomock.AnyString(), pegomock.AnyString())
 
 	commandHandler.VerifyWasCalled(pegomock.Never()).
