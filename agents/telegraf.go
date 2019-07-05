@@ -180,13 +180,13 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 		tr.tomlConfigs[op.GetId()] = finalConfig
 		return true
 
-		case telemetry_edge.ConfigurationOp_REMOVE:
-			if _, ok := tr.tomlConfigs[op.GetId()]; ok {
-				delete(tr.tomlConfigs, op.GetId())
-				return true
-			}
-			return false
-			}
+	case telemetry_edge.ConfigurationOp_REMOVE:
+		if _, ok := tr.tomlConfigs[op.GetId()]; ok {
+			delete(tr.tomlConfigs, op.GetId())
+			return true
+		}
+		return false
+		}
 	return false
 }
 
