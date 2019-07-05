@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"syscall"
@@ -250,4 +251,28 @@ func TestTelegrafRunner_EnsureRunning_MissingExe(t *testing.T) {
 			pegomock.AnyString(), matchers.AnyTimeDuration())
 	mockCommandHandler.VerifyWasCalledOnce().
 		Stop(matchers.AnyPtrToAgentsAgentRunningContext())
+}
+
+func TestTelegrafRunner_Load_WebserverAuth(t *testing.T) {
+	dataPath, err := ioutil.TempDir("", "test_agents")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+
+	mockCommandHandler := NewMockCommandHandler()
+
+	telegrafRunner := &agents.TelegrafRunner{}
+	telegrafRunner.SetCommandHandler(mockCommandHandler)
+	viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+	err = telegrafRunner.Load(dataPath)
+	require.NoError(t, err)
+
+	content, err := telegrafRunner.GetCurrentConfig()
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "outputs.socket_writer")
+
+	content, statusCode, err := telegrafRunner.GetCurrentConfigWithBadToken()
+	require.NoError(t, err)
+	assert.Equal(t, statusCode, http.StatusUnauthorized)
+	assert.NotContains(t, string(content), "outputs.socket_writer")
+	assert.Contains(t, string(content), "unauthorized")
 }

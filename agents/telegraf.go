@@ -124,8 +124,6 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 
 	go tr.serve(listener)
 
-	log.Infof("GBJ curl -v -H 'authorization: Token %s' %s", tr.configServerToken, tr.configServerURL)
-
 	return nil
 }
 

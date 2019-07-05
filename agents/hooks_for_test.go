@@ -78,20 +78,32 @@ func CreatePreRunningAgentRunningContext() *AgentRunningContext {
 	}
 }
 
-func (tr *TelegrafRunner) GetCurrentConfigWithToken(token string) ([]byte, error) {
+func (tr *TelegrafRunner) getCurrentConfigWithToken(token string) (*http.Response, error) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", tr.configServerURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("authorization", "Token "+ token)
-	resp, err := client.Do(req)
+	return client.Do(req)
+
+}
+
+// Always uses the correct token
+func(tr *TelegrafRunner) GetCurrentConfig() ([]byte, error) {
+	resp, err := tr.getCurrentConfigWithToken(tr.configServerToken)
 	if err != nil {
 		return nil, err
 	}
 	return ioutil.ReadAll(resp.Body)
 }
 
-func(tr *TelegrafRunner) GetCurrentConfig() ([]byte, error) {
-	return tr.GetCurrentConfigWithToken(tr.configServerToken)
+// Always uses a bad token
+func(tr *TelegrafRunner) GetCurrentConfigWithBadToken() ([]byte, int,  error) {
+	resp, err := tr.getCurrentConfigWithToken(tr.configServerToken + "BadToken")
+	if err != nil {
+		return nil, 0,  err
+	}
+	content, err := ioutil.ReadAll(resp.Body)
+	return content, resp.StatusCode, err
 }
