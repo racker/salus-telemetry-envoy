@@ -129,6 +129,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 }
 
 func (tr *TelegrafRunner) serve(listener net.Listener) {
+	log.Info("started webServer")
 	err := http.Serve(listener, tr.configServerMux)
 	// Note this is probably not the best way to handle webserver failure
 	log.Fatalf("web server error %v", err)
