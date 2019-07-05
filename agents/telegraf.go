@@ -107,6 +107,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.configServerMux = http.NewServeMux()
 	tr.configServerMux.Handle("/" + serverId, tr.configServerHandler)
 
+	// Get the next available port
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create http listener")
@@ -169,7 +170,6 @@ func (tr *TelegrafRunner) concatConfigs() []byte {
 func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.ConfigurationOp) bool {
 	switch op.GetType() {
 	case telemetry_edge.ConfigurationOp_CREATE, telemetry_edge.ConfigurationOp_MODIFY:
-
 		var finalConfig []byte
 		var err error
 		finalConfig, err = ConvertJsonToTelegrafToml(op.GetContent(), op.ExtraLabels)
@@ -178,7 +178,6 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 			return false
 			}
 		tr.tomlConfigs[op.GetId()] = finalConfig
-
 		return true
 
 		case telemetry_edge.ConfigurationOp_REMOVE:
@@ -187,9 +186,7 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 				return true
 			}
 			return false
-
 			}
-
 	return false
 }
 
