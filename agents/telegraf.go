@@ -67,10 +67,10 @@ type TelegrafRunner struct {
 	configServerMux *http.ServeMux
 	configServerURL string
 	configServerToken string
+	configServerHandler http.HandlerFunc
 	tomlMainConfig []byte
 	tomlConfigs map[string][]byte
 	tomlWebPage []byte
-	httpHandler http.HandlerFunc
 }
 
 func (tr *TelegrafRunner) PurgeConfig() error {
@@ -91,7 +91,8 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.ingestHost = host
 	tr.ingestPort = port
 	tr.basePath = agentBasePath
-	tr.httpHandler = func(w http.ResponseWriter, r *http.Request) {
+	tr.configServerToken = uuid.NewV4().String()
+	tr.configServerHandler = func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("authorization") != "Token " + tr.configServerToken {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -101,17 +102,18 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 			log.Errorf("Error writing config page %v", err)
 		}
 	}
-	tr.configServerMux = http.NewServeMux()
+
 	serverId := uuid.NewV4().String()
-	tr.configServerMux.Handle("/" + serverId, tr.httpHandler)
+	tr.configServerMux = http.NewServeMux()
+	tr.configServerMux.Handle("/" + serverId, tr.configServerHandler)
+
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create http listener")
 	}
-
 	listenerPort := listener.Addr().(*net.TCPAddr).Port
-	tr.configServerToken = uuid.NewV4().String()
 	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", listenerPort, serverId)
+
 	tr.tomlConfigs = make(map[string][]byte)
 	mainConfig, err := tr.createMainConfig()
 	if err != nil {
@@ -119,11 +121,10 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	}
 
 	tr.tomlMainConfig = mainConfig
-	tr.tomlWebPage = mainConfig
-
+	tr.tomlWebPage = make([]byte, len(mainConfig))
+	copy(tr.tomlWebPage, mainConfig)
 
 	go tr.serve(listener)
-
 	return nil
 }
 
@@ -156,7 +157,8 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 }
 
 func (tr *TelegrafRunner) concatConfigs() []byte {
-	configs := tr.tomlMainConfig
+	var configs []byte
+	configs = append(configs, tr.tomlMainConfig...)
 	for _, v := range tr.tomlConfigs {
 		configs = append(configs, v...)
 	}
