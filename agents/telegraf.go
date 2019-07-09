@@ -69,8 +69,8 @@ type TelegrafRunner struct {
 	configServerToken string
 	configServerHandler http.HandlerFunc
 	tomlMainConfig []byte
+	// tomlConfigs key is the "bound monitor id", i.e. monitorId_resourceId
 	tomlConfigs map[string][]byte
-	tomlWebPage []byte
 }
 
 func (tr *TelegrafRunner) PurgeConfig() error {
@@ -97,7 +97,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		_, err = w.Write(tr.tomlWebPage)
+		_, err = w.Write(tr.concatConfigs())
 		if err != nil {
 			log.Errorf("Error writing config page %v", err)
 		}
@@ -108,7 +108,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.configServerMux.Handle("/" + serverId, tr.configServerHandler)
 
 	// Get the next available port
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return errors.Wrap(err, "couldn't create http listener")
 	}
@@ -122,9 +122,6 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	}
 
 	tr.tomlMainConfig = mainConfig
-	tr.tomlWebPage = make([]byte, len(mainConfig))
-	copy(tr.tomlWebPage, mainConfig)
-
 	go tr.serve(listener)
 	return nil
 }
@@ -154,7 +151,6 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 		return &noAppliedConfigsError{}
 	}
 
-	tr.tomlWebPage = tr.concatConfigs()
 	return nil
 }
 
