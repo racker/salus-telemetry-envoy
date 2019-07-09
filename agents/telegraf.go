@@ -157,7 +157,13 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 func (tr *TelegrafRunner) concatConfigs() []byte {
 	var configs []byte
 	configs = append(configs, tr.tomlMainConfig...)
+	// telegraf can only handle one 'inputs' header per file so add exactly one here
+	configs = append(configs, []byte("[inputs]")...)
 	for _, v := range tr.tomlConfigs {
+		// remove the other redundant '[inputs]' headers here
+		if bytes.Equal([]byte("[inputs]"),v[0:8]) {
+			v = v[8:]
+		}
 		configs = append(configs, v...)
 	}
 	return configs
