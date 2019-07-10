@@ -25,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -258,3 +259,9 @@ func (c *AgentRunningContext) Pid() int {
 		return -1
 	}
 }
+
+// envStrings are strings in the format "foo=bar"
+func (c *AgentRunningContext) AppendEnv(envStrings... string) {
+	c.cmd.Env = append(os.Environ(), envStrings...)
+}
+

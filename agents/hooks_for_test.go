@@ -20,6 +20,8 @@ import (
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"testing"
@@ -74,4 +76,34 @@ func CreatePreRunningAgentRunningContext() *AgentRunningContext {
 			Process: &os.Process{},
 		},
 	}
+}
+
+func (tr *TelegrafRunner) getCurrentConfigWithToken(token string) (*http.Response, error) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", tr.configServerURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("authorization", "Token "+ token)
+	return client.Do(req)
+
+}
+
+// Always uses the correct token
+func(tr *TelegrafRunner) GetCurrentConfig() ([]byte, error) {
+	resp, err := tr.getCurrentConfigWithToken(tr.configServerToken)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(resp.Body)
+}
+
+// Always uses a bad token
+func(tr *TelegrafRunner) GetCurrentConfigWithBadToken() ([]byte, int,  error) {
+	resp, err := tr.getCurrentConfigWithToken(tr.configServerToken + "BadToken")
+	if err != nil {
+		return nil, 0,  err
+	}
+	content, err := ioutil.ReadAll(resp.Body)
+	return content, resp.StatusCode, err
 }
