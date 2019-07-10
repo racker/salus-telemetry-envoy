@@ -86,7 +86,7 @@ func (h *StandardCommandHandler) StartAgentCommand(runningContext *AgentRunningC
 
 	log.
 		WithField("agentType", agentType).
-		WithField("cmd", cmd).
+		WithField("args", cmd.Args).
 		Debug("starting agent")
 	err = cmd.Start()
 	if err != nil {
@@ -261,7 +261,6 @@ func (c *AgentRunningContext) Pid() int {
 }
 
 // envStrings are strings in the format "foo=bar"
-func (c *AgentRunningContext) AppendEnv(envStrings... string) {
+func (c *AgentRunningContext) AppendEnv(envStrings ...string) {
 	c.cmd.Env = append(os.Environ(), envStrings...)
 }
-
