@@ -18,7 +18,6 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -70,16 +69,14 @@ func initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		viper.SetConfigName("telemetry-envoy")
 
-		// Search config in home directory with name ".cobra-baseline" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".telemetry-envoy")
+		// main production location
+		viper.AddConfigPath("/etc/salus")
+		// mostly for developer convenience
+		viper.AddConfigPath("$HOME/.salus")
+		// otherwise fallback to looking in current directory to ease double-click launching
+		viper.AddConfigPath(".")
 	}
 
 	replacer := strings.NewReplacer(".", "_", "-", "_")
@@ -92,5 +89,7 @@ func initConfig() {
 		log.WithField("file", viper.ConfigFileUsed()).Info("Using config file")
 	} else if cfgFile != "" {
 		log.WithError(err).Fatal("Failed to read config file")
+	} else {
+		log.WithError(err).Debug("Unable to locate config file")
 	}
 }
