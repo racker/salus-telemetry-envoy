@@ -175,19 +175,17 @@ func (c *StandardEgressConnection) attach() error {
 	dialTimeoutCtx, dialTimeoutCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
 	defer dialTimeoutCancel()
 
-	getNetworkDialer := func (network string) func(ctx context.Context, addr string) (net.Conn, error) {
-		return func (ctx context.Context, addr string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, network, addr)
-		}
-	}
-
 	dialNetwork := func(network string) (*grpc.ClientConn, error) {
+		networkDialOption := grpc.WithContextDialer(
+			func (ctx context.Context, addr string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, addr)
+		})
 		return grpc.DialContext(dialTimeoutCtx,
 			c.Address,
 			c.grpcTlsDialOption,
 			grpc.WithBlock(),
 			grpc.FailOnNonTempDialError(true),
-			grpc.WithContextDialer(getNetworkDialer(network)),
+			networkDialOption,
 		)
 	}
 
