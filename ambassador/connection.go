@@ -31,6 +31,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"net"
 	"strings"
 	"time"
 )
@@ -174,12 +175,27 @@ func (c *StandardEgressConnection) attach() error {
 	dialTimeoutCtx, dialTimeoutCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
 	defer dialTimeoutCancel()
 
-	conn, err := grpc.DialContext(dialTimeoutCtx,
-		c.Address,
-		c.grpcTlsDialOption,
-		grpc.WithBlock(),
-		grpc.FailOnNonTempDialError(true),
-	)
+	getNetworkDialer := func (network string) func(ctx context.Context, addr string) (net.Conn, error) {
+		return func (ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		}
+	}
+
+	dialNetwork := func(network string) (*grpc.ClientConn, error) {
+		return grpc.DialContext(dialTimeoutCtx,
+			c.Address,
+			c.grpcTlsDialOption,
+			grpc.WithBlock(),
+			grpc.FailOnNonTempDialError(true),
+			grpc.WithContextDialer(getNetworkDialer(network)),
+		)
+	}
+
+	conn, err := dialNetwork("tcp6")
+	if err != nil {
+		log.Debugf("tcp6 connection failed with %v", err)
+		conn, err = dialNetwork("tcp4")
+	}
 	if err != nil {
 		return errors.Wrap(err, "failed to dial Ambassador")
 	}
