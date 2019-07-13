@@ -122,7 +122,8 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
 
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -178,7 +179,8 @@ func TestStandardEgressConnection_AmbassadorStop(t *testing.T) {
 	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
 
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -217,7 +219,9 @@ func TestStandardEgressConnection_MissingResourceId(t *testing.T) {
 	mockAgentsRunner := NewMockRouter()
 	viper.Set(config.ResourceId, "")
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.Error(t, err)
 	require.Nil(t, egressConnection)
 }
@@ -252,7 +256,8 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	viper.Set("tls.disabled", true)
 
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -322,7 +327,8 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	viper.Set("tls.disabled", true)
 	detachChan := make(chan struct{}, 1)
 
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
