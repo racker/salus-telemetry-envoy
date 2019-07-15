@@ -362,6 +362,7 @@ func NewTestNetworkDialOptionCreator(networks chan string) *testNetworkDialOptio
 	return &testNetworkDialOptionCreator{networks: networks}
 }
 
+// create a dial option for the network parameter, that returns the parameter on the networks chan
 func (t *testNetworkDialOptionCreator) Create(network string) grpc.DialOption {
 	return grpc.WithContextDialer(
 		func (ctx context.Context, addr string) (net.Conn, error) {
@@ -390,7 +391,6 @@ func TestStandardEgressConnection_NetworkDialOptionCreator(t *testing.T) {
 	networks := make(chan string)
 	testNetworkDialOptionCreator := NewTestNetworkDialOptionCreator(networks)
 
-	//	networkDialOptionCreator := NewMockNetworkDialOptionCreator()
 	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
 		testNetworkDialOptionCreator)
 	require.NoError(t, err)
@@ -399,8 +399,9 @@ func TestStandardEgressConnection_NetworkDialOptionCreator(t *testing.T) {
 	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT})
 
 	var networksTested []string
-	networksExpected :=[]string {"tcp6", "tcp4"}
+	networksExpected :=[]string {"tcp4", "tcp6"}
 
+	// wait for the expected number of messages on the networks chan
 	for range networksExpected {
 		select {
 		case n := <-networks:

@@ -70,6 +70,7 @@ func NewNetworkDialOptionCreator() NetworkDialOptionCreator {
 	return &StandardNetworkDialOptionCreator{}
 }
 
+// create a dial option for the network parameter, (tcp4 or 6)
 func (g *StandardNetworkDialOptionCreator) Create(network string) grpc.DialOption {
 	return grpc.WithContextDialer(
 		func (ctx context.Context, addr string) (net.Conn, error) {
@@ -196,6 +197,7 @@ func (c *StandardEgressConnection) attach() error {
 	dialTimeoutCtx, dialTimeoutCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
 	defer dialTimeoutCancel()
 
+	// dialNetwork takes a network, (tcp4 or 6,) and returns a connection to that network
 	dialNetwork := func(network string) (*grpc.ClientConn, error) {
 		networkDialOption := c.networkDialOptionCreator.Create(network)
 		return grpc.DialContext(dialTimeoutCtx,
@@ -207,6 +209,7 @@ func (c *StandardEgressConnection) attach() error {
 		)
 	}
 
+	// try both 6 and 4
 	conn, err := dialNetwork("tcp6")
 	if err != nil {
 		log.Debugf("tcp6 connection failed with %v", err)
