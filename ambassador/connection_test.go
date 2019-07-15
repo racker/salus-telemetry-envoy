@@ -355,3 +355,62 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 		t.Error("did not see posted metric in time")
 	}
 }
+
+
+type testNetworkDialOptionCreator struct{networks chan string}
+func NewTestNetworkDialOptionCreator(networks chan string) *testNetworkDialOptionCreator {
+	return &testNetworkDialOptionCreator{networks: networks}
+}
+
+func (t *testNetworkDialOptionCreator) Create(network string) grpc.DialOption {
+	return grpc.WithContextDialer(
+		func (ctx context.Context, addr string) (net.Conn, error) {
+			// send back the network being dialed
+			t.networks<-network
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		})
+}
+
+func TestStandardEgressConnection_NetworkDialOptionCreator(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	idGenerator := NewMockIdGenerator()
+	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
+
+	ambassadorPort, err := freeport.GetFreePort()
+	require.NoError(t, err)
+
+	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
+	mockAgentsRunner := NewMockRouter()
+	viper.Set(config.ResourceId, "ourResourceId")
+	viper.Set("tls.disabled", true)
+	viper.Set(config.AmbassadorAddress, ambassadorAddr)
+	detachChan := make(chan struct{}, 1)
+
+	networks := make(chan string)
+	testNetworkDialOptionCreator := NewTestNetworkDialOptionCreator(networks)
+
+	//	networkDialOptionCreator := NewMockNetworkDialOptionCreator()
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		testNetworkDialOptionCreator)
+	require.NoError(t, err)
+
+	ctx, _ := context.WithCancel(context.Background())
+	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT})
+
+	var networksTested []string
+	networksExpected :=[]string {"tcp6", "tcp4"}
+
+	for range networksExpected {
+		select {
+		case n := <-networks:
+			networksTested = append(networksTested, n)
+		case <-time.After(500 * time.Millisecond):
+			t.Log("did not see networks tested in time")
+			t.FailNow()
+		}
+	}
+
+	assert.ElementsMatch(t, networksExpected, networksTested, "expected to see tcp4 and tcp6")
+}
+
