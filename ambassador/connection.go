@@ -125,6 +125,7 @@ func NewEgressConnection(agentsRunner agents.Router, detachChan chan<- struct{},
 		detachChan:        detachChan,
 		idGenerator:       idGenerator,
 		resourceId:        resourceId,
+		networkDialOptionCreator: networkDialOptionCreator,
 	}
 
 	var err error
@@ -141,8 +142,6 @@ func NewEgressConnection(agentsRunner agents.Router, detachChan chan<- struct{},
 	log.WithFields(log.Fields{
 		"resourceId": resourceId,
 	}).Debug("Starting connection with identifier")
-
-	connection.networkDialOptionCreator = networkDialOptionCreator
 
 	return connection, nil
 }
@@ -184,6 +183,20 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 	}
 }
 
+// dialNetwork takes a network, (tcp4 or 6,) and returns a connection to that network
+func (c *StandardEgressConnection) dialNetwork(network string, dialTimeoutCtx context.Context) (*grpc.ClientConn, error) {
+	networkDialOption := c.networkDialOptionCreator.Create(network)
+	return grpc.DialContext(dialTimeoutCtx,
+		c.Address,
+		c.grpcTlsDialOption,
+
+		grpc.WithBlock(),
+		grpc.FailOnNonTempDialError(true),
+		networkDialOption,
+		)
+}
+
+
 func (c *StandardEgressConnection) attach() error {
 
 	c.envoyId = c.idGenerator.Generate()
@@ -197,23 +210,11 @@ func (c *StandardEgressConnection) attach() error {
 	dialTimeoutCtx, dialTimeoutCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
 	defer dialTimeoutCancel()
 
-	// dialNetwork takes a network, (tcp4 or 6,) and returns a connection to that network
-	dialNetwork := func(network string) (*grpc.ClientConn, error) {
-		networkDialOption := c.networkDialOptionCreator.Create(network)
-		return grpc.DialContext(dialTimeoutCtx,
-			c.Address,
-			c.grpcTlsDialOption,
-			grpc.WithBlock(),
-			grpc.FailOnNonTempDialError(true),
-			networkDialOption,
-		)
-	}
-
 	// try both 6 and 4
-	conn, err := dialNetwork("tcp6")
+	conn, err := c.dialNetwork("tcp6", dialTimeoutCtx)
 	if err != nil {
 		log.Debugf("tcp6 connection failed with %v", err)
-		conn, err = dialNetwork("tcp4")
+		conn, err = c.dialNetwork("tcp4", dialTimeoutCtx)
 	}
 	if err != nil {
 		return errors.Wrap(err, "failed to dial Ambassador")
