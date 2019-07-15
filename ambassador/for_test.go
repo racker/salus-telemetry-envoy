@@ -18,6 +18,5 @@
 
 //go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents Router
 //go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador IdGenerator
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador NetworkDialOptionCreator
 
 package ambassador_test
