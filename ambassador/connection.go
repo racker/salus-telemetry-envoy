@@ -196,7 +196,6 @@ func (c *StandardEgressConnection) dialNetwork(network string, dialTimeoutCtx co
 		)
 }
 
-
 func (c *StandardEgressConnection) attach() error {
 
 	c.envoyId = c.idGenerator.Generate()
