@@ -122,7 +122,8 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
 
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -178,7 +179,8 @@ func TestStandardEgressConnection_AmbassadorStop(t *testing.T) {
 	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
 
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -217,7 +219,9 @@ func TestStandardEgressConnection_MissingResourceId(t *testing.T) {
 	mockAgentsRunner := NewMockRouter()
 	viper.Set(config.ResourceId, "")
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.Error(t, err)
 	require.Nil(t, egressConnection)
 }
@@ -252,7 +256,8 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	viper.Set("tls.disabled", true)
 
 	detachChan := make(chan struct{}, 1)
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -322,7 +327,8 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	viper.Set("tls.disabled", true)
 	detachChan := make(chan struct{}, 1)
 
-	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -348,4 +354,63 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Error("did not see posted metric in time")
 	}
+}
+
+type testNetworkDialOptionCreator struct{ networks chan string }
+
+func NewTestNetworkDialOptionCreator(networks chan string) *testNetworkDialOptionCreator {
+	return &testNetworkDialOptionCreator{networks: networks}
+}
+
+// create a dial option for the network parameter, that returns the parameter on the networks chan
+func (t *testNetworkDialOptionCreator) Create(network string) grpc.DialOption {
+	return grpc.WithContextDialer(
+		func(ctx context.Context, addr string) (net.Conn, error) {
+			// send back the network being dialed
+			t.networks <- network
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		})
+}
+
+func TestStandardEgressConnection_NetworkDialOptionCreator(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	idGenerator := NewMockIdGenerator()
+	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
+
+	ambassadorPort, err := freeport.GetFreePort()
+	require.NoError(t, err)
+
+	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
+	mockAgentsRunner := NewMockRouter()
+	viper.Set(config.ResourceId, "ourResourceId")
+	viper.Set("tls.disabled", true)
+	viper.Set(config.AmbassadorAddress, ambassadorAddr)
+	detachChan := make(chan struct{}, 1)
+
+	networks := make(chan string)
+	testNetworkDialOptionCreator := NewTestNetworkDialOptionCreator(networks)
+
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		testNetworkDialOptionCreator)
+	require.NoError(t, err)
+
+	ctx, _ := context.WithCancel(context.Background())
+	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT})
+
+	var networksTested []string
+	networksExpected := []string{"tcp4", "tcp6"}
+
+	// wait for the expected number of messages on the networks chan
+	for range networksExpected {
+		select {
+		case n := <-networks:
+			networksTested = append(networksTested, n)
+		case <-time.After(500 * time.Millisecond):
+			t.Log("did not see networks tested in time")
+			t.FailNow()
+		}
+	}
+
+	assert.ElementsMatch(t, networksExpected, networksTested, "expected to see tcp4 and tcp6")
 }
