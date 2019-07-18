@@ -219,7 +219,7 @@ func TestStandardEgressConnection_MissingResourceId(t *testing.T) {
 	mockAgentsRunner := NewMockRouter()
 	viper.Set(config.ResourceId, "")
 	detachChan := make(chan struct{}, 1)
-	
+
 	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
 		ambassador.NewNetworkDialOptionCreator())
 	require.Error(t, err)
@@ -356,8 +356,8 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	}
 }
 
+type testNetworkDialOptionCreator struct{ networks chan string }
 
-type testNetworkDialOptionCreator struct{networks chan string}
 func NewTestNetworkDialOptionCreator(networks chan string) *testNetworkDialOptionCreator {
 	return &testNetworkDialOptionCreator{networks: networks}
 }
@@ -365,9 +365,9 @@ func NewTestNetworkDialOptionCreator(networks chan string) *testNetworkDialOptio
 // create a dial option for the network parameter, that returns the parameter on the networks chan
 func (t *testNetworkDialOptionCreator) Create(network string) grpc.DialOption {
 	return grpc.WithContextDialer(
-		func (ctx context.Context, addr string) (net.Conn, error) {
+		func(ctx context.Context, addr string) (net.Conn, error) {
 			// send back the network being dialed
-			t.networks<-network
+			t.networks <- network
 			return (&net.Dialer{}).DialContext(ctx, network, addr)
 		})
 }
@@ -399,7 +399,7 @@ func TestStandardEgressConnection_NetworkDialOptionCreator(t *testing.T) {
 	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT})
 
 	var networksTested []string
-	networksExpected :=[]string {"tcp4", "tcp6"}
+	networksExpected := []string{"tcp4", "tcp6"}
 
 	// wait for the expected number of messages on the networks chan
 	for range networksExpected {
@@ -414,4 +414,3 @@ func TestStandardEgressConnection_NetworkDialOptionCreator(t *testing.T) {
 
 	assert.ElementsMatch(t, networksExpected, networksTested, "expected to see tcp4 and tcp6")
 }
-
