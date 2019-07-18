@@ -31,7 +31,7 @@ import (
 	"time"
 )
 
-var runCmd = &cobra.Command{
+var runCmd = &cobra.Command{ 
 	Use:   "run",
 	Short: "Run the Envoy with a secure connection",
 	Run: func(cmd *cobra.Command, args []string) {
