@@ -58,7 +58,7 @@ func NewTestingAmbassadorService(done chan struct{}) *TestingAmbassadorService {
 	}
 }
 
-func (s *TestingAmbassadorService)  AttachEnvoy(summary *telemetry_edge.EnvoySummary, resp telemetry_edge.TelemetryAmbassador_AttachEnvoyServer) error {
+func (s *TestingAmbassadorService) AttachEnvoy(summary *telemetry_edge.EnvoySummary, resp telemetry_edge.TelemetryAmbassador_AttachEnvoyServer) error {
 	if md, ok := metadata.FromIncomingContext(resp.Context()); ok {
 		s.idViaAttach = md.Get(ambassador.EnvoyIdHeader)[0]
 	}

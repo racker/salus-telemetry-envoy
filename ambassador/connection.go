@@ -184,7 +184,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 }
 
 // dialNetwork takes a network, (tcp4 or 6,) and returns a connection to that network
-func (c *StandardEgressConnection)  dialNetwork(network string, dialTimeoutCtx context.Context) (*grpc.ClientConn, error) {
+func (c *StandardEgressConnection) dialNetwork(network string, dialTimeoutCtx context.Context) (*grpc.ClientConn, error) {
 	networkDialOption := c.networkDialOptionCreator.Create(network)
 	return grpc.DialContext(dialTimeoutCtx,
 		c.Address,
