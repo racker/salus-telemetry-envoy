@@ -25,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -77,7 +78,7 @@ func (h *StandardCommandHandler) StartAgentCommand(runningContext *AgentRunningC
 
 	waitForChan, err := h.setupCommandLogging(cmdCtx, agentType, cmd, waitFor)
 	if err != nil {
-		return errors.New("logging and watching command output")
+		return errors.Wrap(err, "failed to setup command logging")
 	}
 
 	runningContext.stopping = false
@@ -85,7 +86,7 @@ func (h *StandardCommandHandler) StartAgentCommand(runningContext *AgentRunningC
 
 	log.
 		WithField("agentType", agentType).
-		WithField("cmd", cmd).
+		WithField("args", cmd.Args).
 		Debug("starting agent")
 	err = cmd.Start()
 	if err != nil {
@@ -257,4 +258,9 @@ func (c *AgentRunningContext) Pid() int {
 	} else {
 		return -1
 	}
+}
+
+// envStrings are strings in the format "foo=bar"
+func (c *AgentRunningContext) AppendEnv(envStrings ...string) {
+	c.cmd.Env = append(os.Environ(), envStrings...)
 }

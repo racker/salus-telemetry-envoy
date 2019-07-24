@@ -1,19 +1,17 @@
 /*
- *    Copyright 2018 Rackspace US, Inc.
+ * Copyright 2019 Rackspace US, Inc.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- *
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package agents_test
@@ -29,9 +27,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
-	"path/filepath"
 	"syscall"
 	"testing"
 )
@@ -73,33 +71,12 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			err = runner.ProcessConfig(configure)
 			require.NoError(t, err)
 
-			var files, mainConfigs, instanceConfigs int
-			err = filepath.Walk(dataPath, func(path string, info os.FileInfo, err error) error {
-				if !info.IsDir() {
-					files++
-				}
-				if filepath.Base(path) == "telegraf.conf" {
-					mainConfigs++
-					content, err := ioutil.ReadFile(path)
-					require.NoError(t, err)
-
-					assert.Contains(t, string(content), "outputs.socket_writer")
-					assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
-				} else if filepath.Base(path) == "a-b-c.conf" {
-					instanceConfigs++
-					content, err := ioutil.ReadFile(path)
-					require.NoError(t, err)
-					assert.Equal(t, "[inputs]\n\n  [[inputs.mem]]\n", string(content))
-
-					assert.Equal(t, "config.d", filepath.Base(filepath.Dir(path)))
-				}
-				return nil
-			})
+			content, err := runner.GetCurrentConfig()
 			require.NoError(t, err)
-			assert.NotZero(t, files)
-			assert.Equal(t, 1, mainConfigs)
-			assert.Equal(t, 1, instanceConfigs)
 
+			assert.Contains(t, string(content), "outputs.socket_writer")
+			assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
+			assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
 		})
 	}
 }
@@ -152,6 +129,8 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
 	err = telegrafRunner.Load(dataPath)
 	require.NoError(t, err)
+	err = telegrafRunner.PurgeConfig()
+	require.NoError(t, err)
 
 	///////////////////////
 	// TEST CREATE
@@ -167,9 +146,10 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	}
 	err = telegrafRunner.ProcessConfig(createConfig)
 	require.NoError(t, err)
-	configs, err := ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	content, err := telegrafRunner.GetCurrentConfig()
 	require.NoError(t, err)
-	assert.Len(t, configs, 1)
+	assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
+
 
 	runningContext := agents.CreatePreRunningAgentRunningContext()
 
@@ -178,7 +158,6 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 		matchers.AnyTelemetryEdgeAgentType(),
 		pegomock.AnyString(),
 		pegomock.AnyString(),
-		pegomock.AnyString(), pegomock.AnyString(),
 		pegomock.AnyString(), pegomock.AnyString())).
 		ThenReturn(runningContext)
 
@@ -189,7 +168,6 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 			matchers.EqTelemetryEdgeAgentType(telemetry_edge.AgentType_TELEGRAF),
 			pegomock.EqString("CURRENT/bin/telegraf"),
 			pegomock.EqString(dataPath),
-			pegomock.AnyString(), pegomock.AnyString(),
 			pegomock.AnyString(), pegomock.AnyString())
 
 	commandHandler.VerifyWasCalled(pegomock.Never()).
@@ -209,14 +187,12 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	}
 	err = telegrafRunner.ProcessConfig(modifyConfig)
 	require.NoError(t, err)
-	configs, err = ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	content, err = telegrafRunner.GetCurrentConfig()
 	require.NoError(t, err)
-	assert.Len(t, configs, 1)
+	assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
+
 
 	telegrafRunner.EnsureRunningState(ctx, true)
-
-	commandHandler.VerifyWasCalledOnce().
-		Signal(matchers.AnyPtrToAgentsAgentRunningContext(), matchers.EqSyscallSignal(syscall.SIGHUP))
 
 	///////////////////////
 	// TEST REMOVE
@@ -231,14 +207,14 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	}
 	err = telegrafRunner.ProcessConfig(removeConfig)
 	require.NoError(t, err)
-	configs, err = ioutil.ReadDir(path.Join(dataPath, "config.d"))
+	content, err = telegrafRunner.GetCurrentConfig()
 	require.NoError(t, err)
-	assert.Len(t, configs, 0)
+	assert.NotContains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
 
 	telegrafRunner.EnsureRunningState(ctx, true)
 
-	commandHandler.VerifyWasCalledOnce().
-		Stop(matchers.EqPtrToAgentsAgentRunningContext(runningContext))
+	commandHandler.VerifyWasCalled(pegomock.Times(2)).
+		Signal(matchers.AnyPtrToAgentsAgentRunningContext(), matchers.EqSyscallSignal(syscall.SIGHUP))
 }
 
 func TestTelegrafRunner_EnsureRunning_MissingExe(t *testing.T) {
@@ -275,4 +251,28 @@ func TestTelegrafRunner_EnsureRunning_MissingExe(t *testing.T) {
 			pegomock.AnyString(), matchers.AnyTimeDuration())
 	mockCommandHandler.VerifyWasCalledOnce().
 		Stop(matchers.AnyPtrToAgentsAgentRunningContext())
+}
+
+func TestTelegrafRunner_Load_WebserverAuth(t *testing.T) {
+	dataPath, err := ioutil.TempDir("", "test_agents")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+
+	mockCommandHandler := NewMockCommandHandler()
+
+	telegrafRunner := &agents.TelegrafRunner{}
+	telegrafRunner.SetCommandHandler(mockCommandHandler)
+	viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+	err = telegrafRunner.Load(dataPath)
+	require.NoError(t, err)
+
+	content, err := telegrafRunner.GetCurrentConfig()
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "outputs.socket_writer")
+
+	content, statusCode, err := telegrafRunner.GetCurrentConfigWithBadToken()
+	require.NoError(t, err)
+	assert.Equal(t, statusCode, http.StatusUnauthorized)
+	assert.NotContains(t, string(content), "outputs.socket_writer")
+	assert.Contains(t, string(content), "unauthorized")
 }

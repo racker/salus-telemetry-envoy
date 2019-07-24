@@ -26,22 +26,30 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync"
 )
 
 type StandardAgentsRouter struct {
-	DataPath string
+	DataPath   string
+	detachChan <-chan struct{}
 
 	ctx context.Context
+	// mutetx is used to ensure ProcessInstall and ProcessConfigure are not called concurrently
+	mutetx sync.Mutex
 }
 
-func NewAgentsRunner() (Router, error) {
+// NewAgentsRunner creates the component that manages the configuration and process lifecycle
+// of the individual agents supported by the Envoy.
+// The detachChan receives a signal when an attachment to an Ambassador is terminated. At that
+// point this agents runner will take care of stopping any running agents and purging configuration
+// in order to guarantee a consistent state at attachment.
+func NewAgentsRunner(detachChan <-chan struct{}) (Router, error) {
 	ar := &StandardAgentsRouter{
-		DataPath: viper.GetString(config.AgentsDataPath),
+		DataPath:   viper.GetString(config.AgentsDataPath),
+		detachChan: detachChan,
 	}
 
 	commandHandler := NewCommandHandler()
-
-	ar.PurgeAgentConfigs()
 
 	for agentType, runner := range specificAgentRunners {
 
@@ -54,6 +62,11 @@ func NewAgentsRunner() (Router, error) {
 		}
 	}
 
+	err := ar.PurgeAgentConfigs()
+	if err != nil {
+		return nil, err
+	}
+
 	return ar, nil
 }
 
@@ -63,12 +76,23 @@ func (ar *StandardAgentsRouter) Start(ctx context.Context) {
 	for {
 		select {
 		case <-ar.ctx.Done():
-			log.Debug("stopping specific runners")
-			for _, specific := range specificAgentRunners {
-				specific.Stop()
-			}
+			ar.stopAll()
 			return
+
+		case <-ar.detachChan:
+			ar.stopAll()
+			err := ar.PurgeAgentConfigs()
+			if err != nil {
+				log.WithError(err).Warn("failed to purge configs while handling detach")
+			}
 		}
+	}
+}
+
+func (ar *StandardAgentsRouter) stopAll() {
+	log.Debug("stopping agent runners")
+	for _, specific := range specificAgentRunners {
+		specific.Stop()
 	}
 }
 
@@ -80,6 +104,9 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 		log.WithField("type", agentType).Warn("no specific runner for agent type")
 		return
 	}
+
+	ar.mutetx.Lock()
+	defer ar.mutetx.Unlock()
 
 	agentVersion := install.Agent.Version
 	agentBasePath := path.Join(ar.DataPath, agentsSubpath, agentType.String())
@@ -146,6 +173,9 @@ func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.Envoy
 	agentType := configure.GetAgentType()
 	if specificRunner, exists := specificAgentRunners[agentType]; exists {
 
+		ar.mutetx.Lock()
+		defer ar.mutetx.Unlock()
+
 		err := specificRunner.ProcessConfig(configure)
 		if err != nil {
 			if IsNoAppliedConfigs(err) {
@@ -161,13 +191,13 @@ func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.Envoy
 	}
 }
 
-func (ar *StandardAgentsRouter) PurgeAgentConfigs() {
-	for agentType := range specificAgentRunners {
-		configsPath := path.Join(ar.DataPath, agentsSubpath, agentType.String(), configsDirSubpath)
-		log.WithField("path", configsPath).Debug("purging agent config directory")
-		err := os.RemoveAll(configsPath)
+func (ar *StandardAgentsRouter) PurgeAgentConfigs() error {
+	for agentType, specificRunner := range specificAgentRunners {
+		log.WithField("agentType", agentType).Debug("purging config")
+		err := specificRunner.PurgeConfig()
 		if err != nil {
-			log.WithError(err).WithField("path", configsPath).Warn("failed to purge configs directory")
+			return err
 		}
 	}
+	return nil
 }

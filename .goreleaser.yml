@@ -14,33 +14,38 @@ builds:
   ignore:
   - goos: darwin
     goarch: 386
-archive:
-  replacements:
-    darwin: Darwin
-    linux: Linux
-    windows: Windows
-    386: i386
-    amd64: x86_64
-nfpm:
-  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-  replacements:
-    darwin: Darwin
-    linux: Linux
-    windows: Windows
-    386: i386
-    amd64: x86_64
-  vendor: Rackspace
-  homepage: https://www.rackspace.com/
-  description: Monitoring application which submits system metrics for further analysis.
-  license: Apache 2.0
-  maintainer: monitoring@rackspace.com
-  formats:
-    - deb
-    - rpm
+archives:
+  -
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+    format_overrides:
+      - goos: windows
+        format: zip
+nfpms:
+  -
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+    vendor: Rackspace
+    homepage: https://www.rackspace.com/
+    description: Monitoring application which submits system metrics for further analysis.
+    license: Apache 2.0
+    maintainer: monitoring@rackspace.com
+    formats:
+      - deb
+      - rpm
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "SNAPSHOT-{{.Commit}}"
+  name_template: "SNAPSHOT-{{.ShortCommit}}"
 changelog:
   sort: asc
   filters:

@@ -17,6 +17,7 @@
 package agents_test
 
 import (
+	"context"
 	"github.com/petergtz/pegomock"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/agents/matchers"
@@ -31,6 +32,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 )
 
 func TestAgentsRunner_ProcessInstall(t *testing.T) {
@@ -71,7 +73,8 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 			defer os.RemoveAll(dataPath)
 			viper.Set(config.AgentsDataPath, dataPath)
 
-			agentsRunner, err := agents.NewAgentsRunner()
+			detachChan := make(chan struct{}, 1)
+			agentsRunner, err := agents.NewAgentsRunner(detachChan)
 			require.NoError(t, err)
 			require.NotNil(t, agentsRunner)
 
@@ -95,4 +98,38 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 			assert.FileExists(t, path.Join(dataPath, "agents", tt.agentType.String(), tt.version, "bin", exeFilename))
 		})
 	}
+}
+
+func TestAgentsRunner_Detach(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	agents.UnregisterAllAgentRunners()
+
+	dataPath, err := ioutil.TempDir("", "test_agents")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+	viper.Set(config.AgentsDataPath, dataPath)
+
+	detachChan := make(chan struct{}, 1)
+	agentsRunner, err := agents.NewAgentsRunner(detachChan)
+	require.NoError(t, err)
+	require.NotNil(t, agentsRunner)
+
+	mockSpecificAgentRunner := NewMockSpecificAgentRunner()
+	agents.RegisterAgentRunnerForTesting(telemetry_edge.AgentType_TELEGRAF, mockSpecificAgentRunner)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	t.Log("starting agents runner")
+	go agentsRunner.Start(ctx)
+
+	t.Log("sending detach signal")
+	detachChan <- struct{}{}
+
+	mockSpecificAgentRunner.
+		VerifyWasCalledEventually(pegomock.Times(1), 100*time.Millisecond).
+		PurgeConfig()
+	mockSpecificAgentRunner.
+		VerifyWasCalledEventually(pegomock.Times(1), 100*time.Millisecond).
+		Stop()
 }

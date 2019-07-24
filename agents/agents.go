@@ -52,6 +52,7 @@ type SpecificAgentRunner interface {
 	// It must ensure the agent process is running if configs and executable are available
 	// It must also ensure that that the process is stopped if no configuration remains
 	EnsureRunningState(ctx context.Context, applyConfigs bool)
+	PurgeConfig() error
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	// Stop should stop the agent's process, if running
 	Stop()
@@ -121,6 +122,7 @@ func downloadExtractTarGz(outputPath, url string, exePath string) error {
 				log.WithError(err).Error("unable to open file for writing")
 				continue
 			}
+			defer file.Close()
 
 			_, err = io.Copy(file, tarReader)
 			if err != nil {

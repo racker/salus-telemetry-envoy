@@ -1,26 +1,23 @@
 /*
- *    Copyright 2018 Rackspace US, Inc.
+ * Copyright 2019 Rackspace US, Inc.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- *
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package cmd
 
 import (
 	"fmt"
-	"github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -59,6 +56,10 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+
+	// log to stdout since most service wrappers and container orchestration expects that
+	log.SetOutput(os.Stdout)
+
 	// Configure logging thresholds
 	if debug {
 		log.SetLevel(log.DebugLevel)
@@ -68,16 +69,14 @@ func initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		viper.SetConfigName("telemetry-envoy")
 
-		// Search config in home directory with name ".cobra-baseline" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".telemetry-envoy")
+		// main production location
+		viper.AddConfigPath("/etc/salus")
+		// mostly for developer convenience
+		viper.AddConfigPath("$HOME/.salus")
+		// otherwise fallback to looking in current directory to ease double-click launching
+		viper.AddConfigPath(".")
 	}
 
 	replacer := strings.NewReplacer(".", "_", "-", "_")
@@ -90,5 +89,7 @@ func initConfig() {
 		log.WithField("file", viper.ConfigFileUsed()).Info("Using config file")
 	} else if cfgFile != "" {
 		log.WithError(err).Fatal("Failed to read config file")
+	} else {
+		log.WithError(err).Debug("Unable to locate config file")
 	}
 }

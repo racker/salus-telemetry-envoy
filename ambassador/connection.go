@@ -19,7 +19,6 @@ package ambassador
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/agents"
@@ -32,6 +31,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"net"
 	"strings"
 	"time"
 )
@@ -60,6 +60,24 @@ func (g *StandardIdGenerator) Generate() string {
 	return uuid.NewV1().String()
 }
 
+type NetworkDialOptionCreator interface {
+	Create(string) grpc.DialOption
+}
+
+type StandardNetworkDialOptionCreator struct{}
+
+func NewNetworkDialOptionCreator() NetworkDialOptionCreator {
+	return &StandardNetworkDialOptionCreator{}
+}
+
+// create a dial option for the network parameter, (tcp4 or 6)
+func (g *StandardNetworkDialOptionCreator) Create(network string) grpc.DialOption {
+	return grpc.WithContextDialer(
+		func(ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		})
+}
+
 type StandardEgressConnection struct {
 	Address           string
 	TlsDisabled       bool
@@ -70,6 +88,7 @@ type StandardEgressConnection struct {
 	envoyId           string
 	ctx               context.Context
 	agentsRunner      agents.Router
+	detachChan        chan<- struct{}
 	grpcTlsDialOption grpc.DialOption
 	certificate       *tls.Certificate
 	supportedAgents   []telemetry_edge.AgentType
@@ -77,7 +96,8 @@ type StandardEgressConnection struct {
 	labels            map[string]string
 	resourceId        string
 	// outgoingContext is used by gRPC client calls to build the final call context
-	outgoingContext context.Context
+	outgoingContext          context.Context
+	networkDialOptionCreator NetworkDialOptionCreator
 }
 
 func init() {
@@ -86,20 +106,26 @@ func init() {
 	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
 }
 
-func NewEgressConnection(agentsRunner agents.Router, idGenerator IdGenerator) (EgressConnection, error) {
+// NewEgressConnection creates the component that manages connections out to a Salus Ambassador.
+// The detachChan provides a signalling mechanism to the agent runner to let is know when an
+// attachment to an Ambassador was terminated.
+func NewEgressConnection(agentsRunner agents.Router, detachChan chan<- struct{}, idGenerator IdGenerator,
+	networkDialOptionCreator NetworkDialOptionCreator) (EgressConnection, error) {
 	resourceId := viper.GetString(config.ResourceId)
 	if resourceId == "" {
 		return nil, errors.Errorf("Envoy configuration is missing %s", config.ResourceId)
 	}
 
 	connection := &StandardEgressConnection{
-		Address:           viper.GetString(config.AmbassadorAddress),
-		TlsDisabled:       viper.GetBool("tls.disabled"),
-		GrpcCallLimit:     viper.GetDuration("grpc.callLimit"),
-		KeepAliveInterval: viper.GetDuration("ambassador.keepAliveInterval"),
-		agentsRunner:      agentsRunner,
-		idGenerator:       idGenerator,
-		resourceId:        resourceId,
+		Address:                  viper.GetString(config.AmbassadorAddress),
+		TlsDisabled:              viper.GetBool("tls.disabled"),
+		GrpcCallLimit:            viper.GetDuration("grpc.callLimit"),
+		KeepAliveInterval:        viper.GetDuration("ambassador.keepAliveInterval"),
+		agentsRunner:             agentsRunner,
+		detachChan:               detachChan,
+		idGenerator:              idGenerator,
+		resourceId:               resourceId,
+		networkDialOptionCreator: networkDialOptionCreator,
 	}
 
 	var err error
@@ -157,6 +183,19 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 	}
 }
 
+// dialNetwork takes a network, (tcp4 or 6,) and returns a connection to that network
+func (c *StandardEgressConnection) dialNetwork(network string, dialTimeoutCtx context.Context) (*grpc.ClientConn, error) {
+	networkDialOption := c.networkDialOptionCreator.Create(network)
+	return grpc.DialContext(dialTimeoutCtx,
+		c.Address,
+		c.grpcTlsDialOption,
+
+		grpc.WithBlock(),
+		grpc.FailOnNonTempDialError(true),
+		networkDialOption,
+	)
+}
+
 func (c *StandardEgressConnection) attach() error {
 
 	c.envoyId = c.idGenerator.Generate()
@@ -170,12 +209,12 @@ func (c *StandardEgressConnection) attach() error {
 	dialTimeoutCtx, dialTimeoutCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
 	defer dialTimeoutCancel()
 
-	conn, err := grpc.DialContext(dialTimeoutCtx,
-		c.Address,
-		c.grpcTlsDialOption,
-		grpc.WithBlock(),
-		grpc.FailOnNonTempDialError(true),
-	)
+	// try both 6 and 4
+	conn, err := c.dialNetwork("tcp6", dialTimeoutCtx)
+	if err != nil {
+		log.Debugf("tcp6 connection failed with %v", err)
+		conn, err = c.dialNetwork("tcp4", dialTimeoutCtx)
+	}
 	if err != nil {
 		return errors.Wrap(err, "failed to dial Ambassador")
 	}
@@ -215,14 +254,16 @@ func (c *StandardEgressConnection) attach() error {
 	for {
 		select {
 		case <-outgoingCtx.Done():
+			log.Debug("closing attach receiver stream")
 			err := instructions.CloseSend()
 			if err != nil {
 				log.WithError(err).Warn("closing send side of instructions stream")
 			}
-			return fmt.Errorf("closed")
+			return errors.New("closed")
 
 		case err := <-errChan:
-			log.WithError(err).Warn("terminating")
+			log.WithError(err).Warn("terminating connection due to error")
+			c.detachChan <- struct{}{}
 			cancelFunc()
 		}
 	}
