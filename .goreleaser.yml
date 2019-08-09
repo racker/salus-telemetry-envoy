@@ -53,3 +53,7 @@ changelog:
     - '^misc:'
     - '^test:'
     - '^build:'
+release:
+  github:
+    owner: racker
+    name: salus-telemetry-envoy
