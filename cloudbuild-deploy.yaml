@@ -1,8 +1,8 @@
 steps:
-  # Setup the workspace so we have a viable place to point GOPATH at.
-  - name: gcr.io/cloud-builders/go
-    env: ['PROJECT_ROOT=github.com/racker/salus-telemetry-envoy']
-    args: ['env']
+#  # Setup the workspace so we have a viable place to point GOPATH at.
+#  - name: gcr.io/cloud-builders/go
+#    env: ['PROJECT_ROOT=github.com/racker/salus-telemetry-envoy']
+#    args: ['env']
 
 
   # Create github release.
