@@ -4,7 +4,7 @@ steps:
   - name: goreleaser/goreleaser
     entrypoint: /bin/sh
     dir: /workspace
-    args: ['-c', 'git tag $TAG_NAME && goreleaser' ]
+    args: ['-c', 'git tag $TAG_NAME && goreleaser --skip-publish' ]
     secretEnv: ['GITHUB_TOKEN']
 
 secrets:
