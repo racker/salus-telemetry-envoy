@@ -2,7 +2,7 @@ module github.com/racker/telemetry-envoy
 
 require (
 	github.com/BurntSushi/toml v0.3.1
-	github.com/alecthomas/participle v0.3.0 // indirect
+	github.com/alecthomas/participle v0.3.0
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/elastic/go-lumber v0.1.0
 	github.com/golang/protobuf v1.3.1
@@ -11,6 +11,7 @@ require (
 	github.com/klauspost/compress v1.4.0 // indirect
 	github.com/klauspost/cpuid v0.0.0-20170728055534-ae7887de9fa5 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/magiconair/properties v1.8.0
 	github.com/oliveagle/jsonpath v0.0.0-20180606110733-2e52cf6e6852
 	github.com/onsi/gomega v1.4.2 // indirect
 	github.com/petergtz/pegomock v0.0.0-20190117204212-6ecf83bd3586

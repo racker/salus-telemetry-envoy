@@ -221,6 +221,11 @@ func (ar *StandardAgentsRouter) ProcessTestMonitor(testMonitor *telemetry_edge.E
 			}
 		}
 
+		log.
+			WithField("instruction", testMonitor).
+			WithField("results", results).
+			Debug("posting results of test-monitor")
+
 		// TODO post results to ambassador
 	} else {
 		log.WithField("type", agentType).Warn("unable to test monitor for unknown agent type")
