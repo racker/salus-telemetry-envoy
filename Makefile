@@ -2,7 +2,7 @@ OS := $(shell uname -s)
 IAmGroot := $(shell whoami)
 
 .PHONY: default
-default: generate build
+default: build
 
 .PHONY: snapshot
 snapshot:
@@ -10,7 +10,7 @@ snapshot:
 
 .PHONY: release
 release:
-	goreleaser release --rm-dist
+	curl -sL https://git.io/goreleaser | bash
 
 .PHONY: build
 build:
@@ -21,8 +21,14 @@ install: test
 	go install
 
 .PHONY: generate
-generate:
+generate: generate-grpc generate-mocks
+
+.PHONY: generate-grpc
+generate-grpc:
 	go generate ./telemetry_edge
+
+.PHONY: generate-mocks
+generate-mocks:
 	go generate ./...
 
 .PHONY: clean
