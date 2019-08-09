@@ -10,4 +10,5 @@ steps:
 secrets:
   - kmsKeyName: projects/salus-220516/locations/global/keyRings/salus-tel-envoy-deploy/cryptoKeys/github-token
     secretEnv:
-      GITHUB_TOKEN: CiQAZWZUEDfNZpcUR/tR/pgDl3+DyCEt2ZtyNuyDlPRvMli9wRUSUQCi5geK/JpmyE5XvcK0hhE/ytmC4W5anY77loL/1SKaRxYhFlGMMLcpCFsilTBLyZQEvGcRJd4kZgJpaHxnxyobhU7+inp+vigis4TfOCeH8g==n
+      GITHUB_TOKEN: |
+        CiQAZWZUEDfNZpcUR/tR/pgDl3+DyCEt2ZtyNuyDlPRvMli9wRUSUQCi5geK/JpmyE5XvcK0hhE/ytmC4W5anY77loL/1SKaRxYhFlGMMLcpCFsilTBLyZQEvGcRJd4kZgJpaHxnxyobhU7+inp+vigis4TfOCeH8g==n
