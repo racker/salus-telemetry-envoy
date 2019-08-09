@@ -354,6 +354,9 @@ func (c *StandardEgressConnection) watchForInstructions(ctx context.Context,
 			case instruction.GetConfigure() != nil:
 				c.agentsRunner.ProcessConfigure(instruction.GetConfigure())
 
+			case instruction.GetTestMonitor() != nil:
+				c.agentsRunner.ProcessTestMonitor(instruction.GetTestMonitor())
+
 			case instruction.GetRefresh() != nil:
 				//TODO
 			}

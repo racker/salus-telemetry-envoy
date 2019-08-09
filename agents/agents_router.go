@@ -201,3 +201,28 @@ func (ar *StandardAgentsRouter) PurgeAgentConfigs() error {
 	}
 	return nil
 }
+
+func (ar *StandardAgentsRouter) ProcessTestMonitor(testMonitor *telemetry_edge.EnvoyInstructionTestMonitor) {
+	log.WithField("instruction", testMonitor).Info("processing test monitor instruction")
+
+	agentType := testMonitor.GetAgentType()
+	if specificRunner, exists := specificAgentRunners[agentType]; exists {
+
+		results, err := specificRunner.ProcessTestMonitor(testMonitor.GetCorrelationId(), testMonitor.GetContent())
+		// returned error is a shorthand to create a test monitor results with only errors reported
+		if err != nil {
+			log.WithError(err).
+				WithField("instruction", testMonitor).
+				Warn("Unable to process test monitor")
+
+			results = &telemetry_edge.TestMonitorResults{
+				CorrelationId: testMonitor.GetCorrelationId(),
+				Errors:        []string{err.Error()},
+			}
+		}
+
+		// TODO post results to ambassador
+	} else {
+		log.WithField("type", agentType).Warn("unable to test monitor for unknown agent type")
+	}
+}
