@@ -1,16 +1,15 @@
 steps:
-#  # Setup the workspace so we have a viable place to point GOPATH at.
-#  - name: gcr.io/cloud-builders/go
-#    env: ['PROJECT_ROOT=github.com/racker/salus-telemetry-envoy']
-#    args: ['env']
+  # Setup the workspace so we have a viable place to point GOPATH at.
+  - name: gcr.io/cloud-builders/go
+    env: ['PROJECT_ROOT=github.com/racker/salus-telemetry-envoy']
+    args: ['env']
 
-  - name: bash
-    args: ['ls', '-al']
+
   # Create github release.
   - name: goreleaser/goreleaser
     entrypoint: /bin/sh
-    dir: /
-    args: ['git tag $TAG_NAME && /goreleaser' ]
+    dir: /workspace
+    args: ['-c', 'git tag $TAG_NAME && goreleaser' ]
     secretEnv: ['GITHUB_TOKEN']
 
 secrets:
