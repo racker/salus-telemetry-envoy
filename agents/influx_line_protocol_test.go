@@ -28,12 +28,15 @@ func TestParseInfluxLineProtocolMetrics(t *testing.T) {
 		name    string
 		content string
 		want    []*telemetry_edge.NameTagValueMetric
-		wantErr bool
+		wantErr string
 	}{
 		{name: "float_d.d", content: "cpu value=1.2 1000000", want: []*telemetry_edge.NameTagValueMetric{
 			{Name: "cpu", Timestamp: 1, Tags: map[string]string{},
 				Fvalues: map[string]float64{"value": 1.2}, Svalues: map[string]string{}},
 		}},
+		{name: "bad timestamp", content: "cpu value=1.2 5.67", wantErr: "invalid integer"},
+		{name: "missing timestamp", content: "cpu value=1.2", wantErr: "expected <space>"},
+		{name: "missing fields", content: "cpu", wantErr: "expected <space>"},
 		{name: "float_.d", content: "cpu value=.2 2000000", want: []*telemetry_edge.NameTagValueMetric{
 			{Name: "cpu", Timestamp: 2, Tags: map[string]string{},
 				Fvalues: map[string]float64{"value": 0.2}, Svalues: map[string]string{}},
@@ -86,11 +89,12 @@ func TestParseInfluxLineProtocolMetrics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			results, err := ParseInfluxLineProtocolMetrics([]byte(tt.content))
-			if !tt.wantErr {
+			if tt.wantErr == "" {
 				require.NoError(t, err)
 				assert.Equal(t, tt.want, results)
 			} else {
 				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
 			}
 		})
 	}
