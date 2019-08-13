@@ -84,13 +84,13 @@ func (tr *TelegrafRunner) getCurrentConfigWithToken(token string) (*http.Respons
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("authorization", "Token "+ token)
+	req.Header.Add("authorization", "Token "+token)
 	return client.Do(req)
 
 }
 
 // Always uses the correct token
-func(tr *TelegrafRunner) GetCurrentConfig() ([]byte, error) {
+func (tr *TelegrafRunner) GetCurrentConfig() ([]byte, error) {
 	resp, err := tr.getCurrentConfigWithToken(tr.configServerToken)
 	if err != nil {
 		return nil, err
@@ -99,11 +99,15 @@ func(tr *TelegrafRunner) GetCurrentConfig() ([]byte, error) {
 }
 
 // Always uses a bad token
-func(tr *TelegrafRunner) GetCurrentConfigWithBadToken() ([]byte, int,  error) {
+func (tr *TelegrafRunner) GetCurrentConfigWithBadToken() ([]byte, int, error) {
 	resp, err := tr.getCurrentConfigWithToken(tr.configServerToken + "BadToken")
 	if err != nil {
-		return nil, 0,  err
+		return nil, 0, err
 	}
 	content, err := ioutil.ReadAll(resp.Body)
 	return content, resp.StatusCode, err
+}
+
+func RegisterTelegrafTestConfigRunnerBuilder(builder TelegrafTestConfigRunnerBuilder) {
+	telegrafTestConfigRunnerBuilder = builder
 }

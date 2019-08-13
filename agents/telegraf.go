@@ -29,6 +29,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"syscall"
@@ -283,7 +284,7 @@ func (tr *TelegrafRunner) hasRequiredPaths() bool {
 
 func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content string) (*telemetry_edge.TestMonitorResults, error) {
 
-	// convert content to TOML
+	// Convert content to TOML
 
 	configToml, err := ConvertJsonToTelegrafToml(content, nil)
 	if err != nil {
@@ -292,11 +293,10 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 
 	// Start the config server
 
-	configServerToken := uuid.NewV4().String()
+	testConfigServerToken := uuid.NewV4().String()
+	testConfigServerId := uuid.NewV4().String()
 
-	serverId := uuid.NewV4().String()
-
-	// Get the next available port
+	// Bind to the next available port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create http listener")
@@ -305,42 +305,48 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 	defer listener.Close()
 
 	listenerPort := listener.Addr().(*net.TCPAddr).Port
-
 	hostPort := fmt.Sprintf("127.0.0.1:%d", listenerPort)
 
-	configServerErrors := make(chan error, 1)
+	configServerErrors := make(chan error, 2)
 
-	configServerMux := http.NewServeMux()
-	configServerMux.HandleFunc("/"+serverId, func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("authorization") != "Token "+configServerToken {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
+	tcr := telegrafTestConfigRunnerBuilder(testConfigServerId, testConfigServerToken)
+
+	configServer := tcr.StartTestConfigServer(configToml, configServerErrors, listener)
+
+	// setup the telegraf test command
+
+	results := &telemetry_edge.TestMonitorResults{
+		CorrelationId: correlationId,
+		Errors:        []string{},
+	}
+	cmdOut, err := tcr.RunCommand(hostPort, tr.exePath(), tr.basePath)
+	if err != nil {
+		results.Errors = append(results.Errors, "Command: "+err.Error())
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			results.Errors = append(results.Errors, "CommandStderr: "+string(exitErr.Stderr))
 		}
-
-		_, err := w.Write(configToml)
+	} else {
+		// ... and process output
+		parsedMetrics, err := ParseInfluxLineProtocolMetrics(cmdOut)
 		if err != nil {
-			configServerErrors <- errors.Wrap(err, "failed to write config TOML response")
+			results.Errors = append(results.Errors, "Parse: "+err.Error())
+		} else {
+			results.Metrics = make([]*telemetry_edge.Metric, len(parsedMetrics))
+			for i, metric := range parsedMetrics {
+				results.Metrics[i] = &telemetry_edge.Metric{
+					Variant: &telemetry_edge.Metric_NameTagValue{NameTagValue: metric},
+				}
+			}
 		}
-	})
-
-	go func() {
-		log.Debug("started test monitor config server")
-		err := http.Serve(listener, configServerMux)
-		configServerErrors <- err
-	}()
-
-	// start the telegraf command
-
-	_ = url.URL{
-		Scheme: "http",
-		Host:   hostPort,
-		Path:   serverId,
 	}
 
-	// consume metrics results
+	// Close out the temporary config server
+	_ = configServer.Close()
+	close(configServerErrors)
+	// ...capture any errors from the config server
+	for err := range configServerErrors {
+		results.Errors = append(results.Errors, "ConfigServer: "+err.Error())
+	}
 
-	// post to ambassador
-
-	panic("implement me")
-
+	return results, nil
 }

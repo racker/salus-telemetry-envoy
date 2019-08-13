@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# This is a stub script used by telegraf_test_config_runner_test.go to intercept running
+# telegraf with the --test mode and a URL based --config argument
+
+echo "args=$*"
+echo "INFLUX_TOKEN=$INFLUX_TOKEN"

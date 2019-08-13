@@ -65,7 +65,7 @@ type Router interface {
 	Start(ctx context.Context)
 	ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall)
 	ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure)
-	ProcessTestMonitor(testMonitor *telemetry_edge.EnvoyInstructionTestMonitor)
+	ProcessTestMonitor(testMonitor *telemetry_edge.EnvoyInstructionTestMonitor) *telemetry_edge.TestMonitorResults
 }
 
 type noAppliedConfigsError struct{}
@@ -85,6 +85,7 @@ func IsNoAppliedConfigs(err error) bool {
 
 func init() {
 	viper.SetDefault(config.AgentsDataPath, config.DefaultAgentsDataPath)
+	viper.SetDefault(config.AgentsTestMonitorTimeout, config.DefaultAgentsTestMonitorTimeout)
 }
 
 func downloadExtractTarGz(outputPath, url string, exePath string) error {

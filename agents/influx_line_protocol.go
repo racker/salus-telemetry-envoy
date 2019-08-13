@@ -21,6 +21,7 @@ import (
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/participle/lexer/ebnf"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"strconv"
 	"strings"
 )
 
@@ -91,32 +92,37 @@ func ParseInfluxLineProtocolMetrics(content []byte) ([]*telemetry_edge.NameTagVa
 		return nil, err
 	}
 
-	type GroupingKey struct {
-		MetricName string
-		Timestamp  uint64
-	}
-
-	groupedMetrics := make(map[GroupingKey]*telemetry_edge.NameTagValueMetric)
-
+	results := make([]*telemetry_edge.NameTagValueMetric, 0, len(result.Lines))
 	for _, line := range result.Lines {
-		key := GroupingKey{MetricName: line.MetricName, Timestamp: line.Timestamp}
-		metric := groupedMetrics[key]
-		if metric == nil {
-			metric = &telemetry_edge.NameTagValueMetric{
-				Name: line.MetricName,
-				// convert nanosecond influx timestamp to milliseconds
-				Timestamp: int64(line.Timestamp / 1000000),
+		metric := &telemetry_edge.NameTagValueMetric{
+			Name: line.MetricName,
+			// convert nanosecond influx timestamp to milliseconds
+			Timestamp: int64(line.Timestamp / 1000000),
+		}
+
+		metric.Tags = make(map[string]string)
+		for _, tag := range line.TagSet {
+			metric.Tags[tag.Key] = tag.Value
+		}
+
+		metric.Fvalues = make(map[string]float64)
+		metric.Svalues = make(map[string]string)
+		for _, field := range line.FieldSet {
+			if field.Value.String != nil {
+				metric.Svalues[field.Key] = *field.Value.String
+			} else if field.Value.Boolean != nil {
+				metric.Svalues[field.Key] = strconv.FormatBool(*field.Value.Boolean)
+			} else if field.Value.Float != nil {
+				metric.Fvalues[field.Key] = *field.Value.Float
+			} else if field.Value.Int != nil {
+				// need to match schema behavior of ingest/telegraf_json where JSON unmarshalling
+				// cannot differentiate between float64 and int64
+				metric.Fvalues[field.Key] = float64(*field.Value.Int)
 			}
 		}
 
-		// TODO convert tagset and fieldset
-
-		groupedMetrics[key] = metric
-	}
-
-	results := make([]*telemetry_edge.NameTagValueMetric, 0, len(groupedMetrics))
-	for _, metric := range groupedMetrics {
 		results = append(results, metric)
 	}
+
 	return results, nil
 }
