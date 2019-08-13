@@ -109,6 +109,7 @@ message NameTagValueMetric {
     map<string,string> tags = 3;
     map<string,double> fvalues = 4;
     map<string,string> svalues = 5;
+    map<string,int64> ivalues = 6;
 }
 
 message PostMetricResponse {}
@@ -122,7 +123,7 @@ message EnvoyInstructionTestMonitor {
 message TestMonitorResults {
     string correlationId = 1;
     repeated string errors = 2;
-    Metric metric = 3;
+    repeated Metric metrics = 3;
 }
 
 message PostTestMonitorResultsResponse {}
