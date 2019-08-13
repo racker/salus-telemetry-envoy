@@ -25,6 +25,11 @@ import (
 	"strings"
 )
 
+// The following structs declare a Particple grammar
+// https://github.com/alecthomas/participle
+// that can parse Influx line protocol
+// https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_reference/
+
 type InfluxLines struct {
 	Lines []*InfluxLine `@@ (Newline @@)* Newline?`
 }
