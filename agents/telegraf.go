@@ -291,12 +291,12 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 		return nil, errors.Wrapf(err, "failed to convert config content")
 	}
 
-	// Start the config server
+	// Generate token/id used for authenticating and pulling telegraf config
 
 	testConfigServerToken := uuid.NewV4().String()
 	testConfigServerId := uuid.NewV4().String()
 
-	// Bind to the next available port
+	// Bind to the next available port by using :0
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create http listener")
@@ -309,17 +309,19 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 
 	configServerErrors := make(chan error, 2)
 
-	tcr := telegrafTestConfigRunnerBuilder(testConfigServerId, testConfigServerToken)
+	testConfigRunner := telegrafTestConfigRunnerBuilder(testConfigServerId, testConfigServerToken)
 
-	configServer := tcr.StartTestConfigServer(configToml, configServerErrors, listener)
+	// Start the config server
 
-	// setup the telegraf test command
+	configServer := testConfigRunner.StartTestConfigServer(configToml, configServerErrors, listener)
+
+	// Rung the telegraf test command
 
 	results := &telemetry_edge.TestMonitorResults{
 		CorrelationId: correlationId,
 		Errors:        []string{},
 	}
-	cmdOut, err := tcr.RunCommand(hostPort, tr.exePath(), tr.basePath)
+	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath)
 	if err != nil {
 		results.Errors = append(results.Errors, "Command: "+err.Error())
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -331,6 +333,7 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 		if err != nil {
 			results.Errors = append(results.Errors, "Parse: "+err.Error())
 		} else {
+			// Wrap up the named tag-value metrics into the general metrics type
 			results.Metrics = make([]*telemetry_edge.Metric, len(parsedMetrics))
 			for i, metric := range parsedMetrics {
 				results.Metrics[i] = &telemetry_edge.Metric{

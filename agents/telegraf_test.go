@@ -317,6 +317,8 @@ func TestTelegrafRunner_ProcessTestMonitor_Normal(t *testing.T) {
 	expectedMetrics, err := ioutil.ReadAll(expectedMetricsFile)
 	require.NoError(t, err)
 	_ = expectedMetricsFile.Close()
+	// rather than do a deep equals on a data structure that would be tedious to populated, we'll
+	// compare a verbose dump of the object with %+v
 	assert.Equal(t, string(expectedMetrics), fmt.Sprintf("%+v", results.GetMetrics()))
 
 	configToml, _, listener := tcr.VerifyWasCalledOnce().

@@ -30,19 +30,21 @@ import (
 	"os/exec"
 )
 
-// to enable unit test mocking
+// TelegrafTestConfigRunner encapsulates the process-spawning aspects of handling telegraf's --test
+// mode of running a configuration one-shot
+type TelegrafTestConfigRunner interface {
+	StartTestConfigServer(configToml []byte, configServerErrors chan error, listener net.Listener) io.Closer
+	RunCommand(hostPort string, exePath string, basePath string) ([]byte, error)
+}
+
 type TelegrafTestConfigRunnerBuilder func(testConfigServerId string, testConfigServerToken string) TelegrafTestConfigRunner
 
+// This builder function variable enables unit test mocking via RegisterTelegrafTestConfigRunnerBuilder
 var telegrafTestConfigRunnerBuilder TelegrafTestConfigRunnerBuilder = func(testConfigServerId string, testConfigServerToken string) TelegrafTestConfigRunner {
 	return &defaultTelegrafTestConfigRunner{
 		testConfigServerId:    testConfigServerId,
 		testConfigServerToken: testConfigServerToken,
 	}
-}
-
-type TelegrafTestConfigRunner interface {
-	StartTestConfigServer(configToml []byte, configServerErrors chan error, listener net.Listener) io.Closer
-	RunCommand(hostPort string, exePath string, basePath string) ([]byte, error)
 }
 
 type defaultTelegrafTestConfigRunner struct {

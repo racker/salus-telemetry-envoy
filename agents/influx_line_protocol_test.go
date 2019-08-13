@@ -99,12 +99,3 @@ func TestParseInfluxLineProtocolMetrics(t *testing.T) {
 		})
 	}
 }
-
-func assertHasMetricNamed(t *testing.T, metrics []*telemetry_edge.NameTagValueMetric, wantName string) {
-	for _, metric := range metrics {
-		if metric.Name == wantName {
-			return
-		}
-	}
-	assert.Failf(t, "missing named metric", "wanted %s", wantName)
-}
