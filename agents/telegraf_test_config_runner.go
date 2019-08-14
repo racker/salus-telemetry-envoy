@@ -18,6 +18,7 @@ package agents
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/sirupsen/logrus"
@@ -25,7 +26,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 )
@@ -80,15 +80,11 @@ func (tcr *defaultTelegrafTestConfigRunner) StartTestConfigServer(configToml []b
 }
 
 func (tcr *defaultTelegrafTestConfigRunner) RunCommand(hostPort string, exePath string, basePath string) ([]byte, error) {
-	testConfigServerUrl := url.URL{
-		Scheme: "http",
-		Host:   hostPort,
-		Path:   tcr.testConfigServerId,
-	}
+	testConfigServerUrl := fmt.Sprintf("http://%s/%s", hostPort, tcr.testConfigServerId)
 	cmdCtx, _ := context.WithTimeout(context.Background(), viper.GetDuration(config.AgentsTestMonitorTimeout))
 	cmd := exec.CommandContext(cmdCtx, exePath,
 		"--test",
-		"--config", testConfigServerUrl.String())
+		"--config", testConfigServerUrl)
 	cmd.Dir = basePath
 	cmd.Env = append(os.Environ(), "INFLUX_TOKEN="+tcr.testConfigServerToken)
 	cmd.Stderr = nil

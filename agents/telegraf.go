@@ -28,7 +28,6 @@ import (
 	"github.com/spf13/viper"
 	"net"
 	"net/http"
-	"net/url"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -115,12 +114,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 		return errors.Wrap(err, "couldn't create http listener")
 	}
 	listenerPort := listener.Addr().(*net.TCPAddr).Port
-	configServerURL := url.URL{
-		Scheme: "http",
-		Host:   fmt.Sprintf("127.0.0.1:%d", listenerPort),
-		Path:   serverId,
-	}
-	tr.configServerURL = configServerURL.String()
+	tr.configServerURL = fmt.Sprintf("http://127.0.0.1:%d/%s", listenerPort, serverId)
 
 	tr.tomlConfigs = make(map[string][]byte)
 	mainConfig, err := tr.createMainConfig()
