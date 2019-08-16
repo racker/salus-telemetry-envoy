@@ -25,10 +25,28 @@ import (
 	"strings"
 )
 
-// The following structs declare a Participle grammar
-// https://github.com/alecthomas/participle
-// that can parse Influx line protocol
-// https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_reference/
+/*
+This parser parses influx line protocol, https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_reference/
+
+<measurement>[,<tag_key>=<tag_value>[,<tag_key>=<tag_value>]] <field_key>=<field_value>[,<field_key>=<field_value>] [<timestamp>]
+
+Tokens preceded with an '@' capture the value of the token into the corresponding field, e.g:
+this grammar:
+
+type InfluxTagSet struct {
+	Key   string `@String Equals`
+	Value string `(@String | @Float | @Int)`
+}
+
+when given this input:
+
+"fstype=devfs",
+
+will set 'Key' to 'fstype' and 'Value' to 'devfs'.
+
+'@@' captures the entire struct, and '@@*' captures the entire array of structs
+More details about the grammar definitions here: // https://github.com/alecthomas/participle
+*/
 
 type InfluxLines struct {
 	Lines []*InfluxLine `@@ (Newline @@)* Newline?`
