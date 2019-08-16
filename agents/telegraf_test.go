@@ -327,6 +327,16 @@ func TestTelegrafRunner_ProcessTestMonitor_Normal(t *testing.T) {
 
 	assert.Equal(t, "[inputs]\n\n  [[inputs.cpu]]\n", string(configToml))
 	assert.NotNil(t, listener)
+	//noinspection GoUnhandledErrorResult
+	defer listener.Close()
+
+	hostPort, exe, basePath := tcr.VerifyWasCalledOnce().
+		RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).
+		GetCapturedArguments()
+	assert.Contains(t, hostPort, "127.0.0.1:")
+	assert.Equal(t, exe, "CURRENT/bin/telegraf")
+	// empty value expected since runner's full config purposely wasn't loaded
+	assert.Equal(t, basePath, "")
 
 	stubConfigServer.VerifyWasCalledOnce().
 		Close()

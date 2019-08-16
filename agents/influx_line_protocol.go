@@ -46,6 +46,10 @@ will set 'Key' to 'fstype' and 'Value' to 'devfs'.
 
 '@@' captures the entire struct, and '@@*' captures the entire array of structs
 More details about the grammar definitions here: // https://github.com/alecthomas/participle
+
+NOTE: the use of TestOutputPrefix in the InfluxLine parsing below is to allow this grammar to
+accommodate the --test mode of telegraf. In that mode, each stdout line of metrics is preceded by "> ".
+
 */
 
 type InfluxLines struct {
