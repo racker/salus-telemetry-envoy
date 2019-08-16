@@ -58,8 +58,8 @@ type InfluxLines struct {
 
 type InfluxLine struct {
 	MetricName string            `TestOutputPrefix? @String`
-	TagSet     []*InfluxTagSet   `( "," @@ )*`
-	FieldSet   []*InfluxFieldSet `Space @@ ( "," @@ )*`
+	TagSet     []*InfluxTagSet   `( Comma @@ )*`
+	FieldSet   []*InfluxFieldSet `Space @@ ( Comma @@ )*`
 	// It's actually a long, but Float is the most appropriate token since Int has the trailing "i" thing
 	// Participle will take care of coercing the number into a uint64
 	Timestamp uint64 `Space @Float`
