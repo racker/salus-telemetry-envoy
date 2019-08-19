@@ -316,6 +316,13 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 		Errors:        []string{},
 	}
 	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath)
+	log.
+		WithError(err).
+		WithField("correlationId", correlationId).
+		WithField("content", content).
+		WithField("out", string(cmdOut)).
+		Debug("ran telegraf with test config")
+
 	if err != nil {
 		results.Errors = append(results.Errors, "Command: "+err.Error())
 		if exitErr, ok := err.(*exec.ExitError); ok {
