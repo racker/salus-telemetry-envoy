@@ -125,7 +125,7 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 
 		err = downloadExtractTarGz(outputPath, install.Url, install.Exe)
 		if err != nil {
-			os.RemoveAll(outputPath)
+			_ = os.RemoveAll(outputPath)
 			log.WithError(err).Error("failed to download and extract agent")
 			return
 		}
@@ -134,13 +134,13 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 		currentSymlinkPath := path.Join(agentBasePath, currentVerLink)
 		err = os.Remove(currentSymlinkPath)
 		if err != nil && !os.IsNotExist(err) {
-			os.RemoveAll(outputPath)
+			_ = os.RemoveAll(outputPath)
 			log.WithError(err).Warn("failed to delete current version symlink")
 			return
 		}
 		err = os.Symlink(agentVersion, currentSymlinkPath)
 		if err != nil {
-			os.RemoveAll(outputPath)
+			_ = os.RemoveAll(outputPath)
 			log.WithError(err).WithFields(log.Fields{
 				"version": agentVersion,
 				"type":    agentType,
@@ -200,4 +200,36 @@ func (ar *StandardAgentsRouter) PurgeAgentConfigs() error {
 		}
 	}
 	return nil
+}
+
+func (ar *StandardAgentsRouter) ProcessTestMonitor(testMonitor *telemetry_edge.EnvoyInstructionTestMonitor) *telemetry_edge.TestMonitorResults {
+
+	log.WithField("instruction", testMonitor).Info("processing test monitor instruction")
+
+	agentType := testMonitor.GetAgentType()
+	if specificRunner, exists := specificAgentRunners[agentType]; exists {
+
+		results, err := specificRunner.ProcessTestMonitor(testMonitor.GetCorrelationId(), testMonitor.GetContent())
+		// returned error is a shorthand to create a test monitor results with only errors reported
+		if err != nil {
+			log.WithError(err).
+				WithField("instruction", testMonitor).
+				Warn("Unable to process test monitor")
+
+			results = &telemetry_edge.TestMonitorResults{
+				CorrelationId: testMonitor.GetCorrelationId(),
+				Errors:        []string{err.Error()},
+			}
+		}
+
+		log.
+			WithField("instruction", testMonitor).
+			WithField("results", results).
+			Debug("returning results of test-monitor")
+
+		return results
+	} else {
+		log.WithField("type", agentType).Warn("unable to test monitor for unknown agent type")
+		return nil
+	}
 }

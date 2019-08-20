@@ -64,6 +64,8 @@ agents:
   terminationTimeout: 5s
   # The amount of time to pause before each restart of a failed agent process.
   restartDelay: 1s
+  # The amount of time an agent is allowed to run while performing a "test monitor" operation
+  testMonitorTimeout: 30s
 ```
 
 ## Development

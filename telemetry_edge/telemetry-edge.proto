@@ -6,6 +6,7 @@ service TelemetryAmbassador {
     rpc KeepAlive (KeepAliveRequest) returns (KeepAliveResponse) {}
     rpc PostLogEvent (LogEvent) returns (PostLogEventResponse) {}
     rpc PostMetric (PostedMetric) returns (PostMetricResponse) {}
+    rpc PostTestMonitorResults (TestMonitorResults) returns (PostTestMonitorResultsResponse) {}
 }
 
 message EnvoySummary {
@@ -35,6 +36,7 @@ message EnvoyInstruction {
         EnvoyInstructionInstall install = 1;
         EnvoyInstructionConfigure configure = 2;
         EnvoyInstructionRefresh refresh = 3;
+        EnvoyInstructionTestMonitor testMonitor = 4;
     }
 }
 
@@ -107,6 +109,21 @@ message NameTagValueMetric {
     map<string,string> tags = 3;
     map<string,double> fvalues = 4;
     map<string,string> svalues = 5;
+    map<string,int64> ivalues = 6;
 }
 
 message PostMetricResponse {}
+
+message EnvoyInstructionTestMonitor {
+    string correlationId = 1;
+    AgentType agentType = 2;
+    string content = 3;
+}
+
+message TestMonitorResults {
+    string correlationId = 1;
+    repeated string errors = 2;
+    repeated Metric metrics = 3;
+}
+
+message PostTestMonitorResultsResponse {}

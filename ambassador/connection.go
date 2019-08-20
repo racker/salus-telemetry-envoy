@@ -44,6 +44,7 @@ type EgressConnection interface {
 	Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType)
 	PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string)
 	PostMetric(metric *telemetry_edge.Metric)
+	PostTestMonitorResults(results *telemetry_edge.TestMonitorResults)
 }
 
 type IdGenerator interface {
@@ -174,7 +175,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 						}
 					}
 				})
-			if err != nil {
+			if err != nil && err.Error() != "closed" {
 				log.WithError(err).Warn("failure during retry section")
 			}
 
@@ -292,7 +293,22 @@ func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 		Metric: metric,
 	})
 	if err != nil {
-		log.WithError(err).Warn("failed to post metric")
+		log.WithError(err).
+			WithField("metric", metric).
+			Warn("failed to post metric")
+	}
+}
+
+func (c *StandardEgressConnection) PostTestMonitorResults(results *telemetry_edge.TestMonitorResults) {
+	callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
+	defer callCancel()
+
+	log.WithField("results", results).Debug("posting test monitor results")
+	_, err := c.client.PostTestMonitorResults(callCtx, results)
+	if err != nil {
+		log.WithError(err).
+			WithField("results", results).
+			Warn("failed to post test monitor results")
 	}
 }
 
@@ -354,9 +370,33 @@ func (c *StandardEgressConnection) watchForInstructions(ctx context.Context,
 			case instruction.GetConfigure() != nil:
 				c.agentsRunner.ProcessConfigure(instruction.GetConfigure())
 
+			case instruction.GetTestMonitor() != nil:
+				c.processTestMonitor(instruction.GetTestMonitor())
+
 			case instruction.GetRefresh() != nil:
 				//TODO
 			}
 		}
 	}
+}
+
+func (c *StandardEgressConnection) processTestMonitor(testMonitor *telemetry_edge.EnvoyInstructionTestMonitor) {
+	// Test monitors are blocking since they typically require starting a temporary instance of
+	// the agent and gathering its results.
+	//
+	// ...so let it process concurrently and we'll post the return value when it's available.
+	//
+	// FYI letting the agent code post back to the ambassador code would have introduced a package
+	// import cycle.
+	go func() {
+		// any errors within the operation are stored into the returned results structure
+		results := c.agentsRunner.ProcessTestMonitor(testMonitor)
+		if results != nil {
+			c.PostTestMonitorResults(results)
+		} else {
+			log.
+				WithField("instruction", testMonitor).
+				Warn("Unexpected nil test monitor results")
+		}
+	}()
 }

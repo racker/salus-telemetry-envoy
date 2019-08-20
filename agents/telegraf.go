@@ -28,6 +28,7 @@ import (
 	"github.com/spf13/viper"
 	"net"
 	"net/http"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"syscall"
@@ -59,16 +60,16 @@ type telegrafMainConfigData struct {
 }
 
 type TelegrafRunner struct {
-	ingestHost     string
-	ingestPort     string
-	basePath       string
-	running        *AgentRunningContext
-	commandHandler CommandHandler
-	configServerMux *http.ServeMux
-	configServerURL string
-	configServerToken string
+	ingestHost          string
+	ingestPort          string
+	basePath            string
+	running             *AgentRunningContext
+	commandHandler      CommandHandler
+	configServerMux     *http.ServeMux
+	configServerURL     string
+	configServerToken   string
 	configServerHandler http.HandlerFunc
-	tomlMainConfig []byte
+	tomlMainConfig      []byte
 	// tomlConfigs key is the "bound monitor id", i.e. monitorId_resourceId
 	tomlConfigs map[string][]byte
 }
@@ -93,7 +94,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 	tr.basePath = agentBasePath
 	tr.configServerToken = uuid.NewV4().String()
 	tr.configServerHandler = func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("authorization") != "Token " + tr.configServerToken {
+		if r.Header.Get("authorization") != "Token "+tr.configServerToken {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -105,7 +106,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 
 	serverId := uuid.NewV4().String()
 	tr.configServerMux = http.NewServeMux()
-	tr.configServerMux.Handle("/" + serverId, tr.configServerHandler)
+	tr.configServerMux.Handle("/"+serverId, tr.configServerHandler)
 
 	// Get the next available port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -113,7 +114,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 		return errors.Wrap(err, "couldn't create http listener")
 	}
 	listenerPort := listener.Addr().(*net.TCPAddr).Port
-	tr.configServerURL = fmt.Sprintf("http://localhost:%d/%s", listenerPort, serverId)
+	tr.configServerURL = fmt.Sprintf("http://127.0.0.1:%d/%s", listenerPort, serverId)
 
 	tr.tomlConfigs = make(map[string][]byte)
 	mainConfig, err := tr.createMainConfig()
@@ -161,7 +162,7 @@ func (tr *TelegrafRunner) concatConfigs() []byte {
 	configs = append(configs, []byte("[inputs]")...)
 	for _, v := range tr.tomlConfigs {
 		// remove the other redundant '[inputs]' headers here
-		if bytes.Equal([]byte("[inputs]"),v[0:8]) {
+		if bytes.Equal([]byte("[inputs]"), v[0:8]) {
 			v = v[8:]
 		}
 		configs = append(configs, v...)
@@ -178,7 +179,7 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 		if err != nil {
 			log.WithError(err).WithField("op", op).Warn("failed to convert config blob to TOML")
 			return false
-			}
+		}
 		tr.tomlConfigs[op.GetId()] = finalConfig
 		return true
 
@@ -188,7 +189,7 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 			return true
 		}
 		return false
-		}
+	}
 	return false
 }
 
@@ -273,4 +274,83 @@ func (tr *TelegrafRunner) hasRequiredPaths() bool {
 	}
 
 	return true
+}
+
+func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content string) (*telemetry_edge.TestMonitorResults, error) {
+
+	// Convert content to TOML
+
+	configToml, err := ConvertJsonToTelegrafToml(content, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to convert config content")
+	}
+
+	// Generate token/id used for authenticating and pulling telegraf config
+
+	testConfigServerToken := uuid.NewV4().String()
+	testConfigServerId := uuid.NewV4().String()
+
+	// Bind to the next available port by using :0
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create http listener")
+	}
+	//noinspection GoUnhandledErrorResult
+	defer listener.Close()
+
+	listenerPort := listener.Addr().(*net.TCPAddr).Port
+	hostPort := fmt.Sprintf("127.0.0.1:%d", listenerPort)
+
+	configServerErrors := make(chan error, 2)
+
+	testConfigRunner := telegrafTestConfigRunnerBuilder(testConfigServerId, testConfigServerToken)
+
+	// Start the config server
+
+	configServer := testConfigRunner.StartTestConfigServer(configToml, configServerErrors, listener)
+
+	// Rung the telegraf test command
+
+	results := &telemetry_edge.TestMonitorResults{
+		CorrelationId: correlationId,
+		Errors:        []string{},
+	}
+	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath)
+	log.
+		WithError(err).
+		WithField("correlationId", correlationId).
+		WithField("content", content).
+		WithField("out", string(cmdOut)).
+		Debug("ran telegraf with test config")
+
+	if err != nil {
+		results.Errors = append(results.Errors, "Command: "+err.Error())
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			results.Errors = append(results.Errors, "CommandStderr: "+string(exitErr.Stderr))
+		}
+	} else {
+		// ... and process output
+		parsedMetrics, err := ParseInfluxLineProtocolMetrics(cmdOut)
+		if err != nil {
+			results.Errors = append(results.Errors, "Parse: "+err.Error())
+		} else {
+			// Wrap up the named tag-value metrics into the general metrics type
+			results.Metrics = make([]*telemetry_edge.Metric, len(parsedMetrics))
+			for i, metric := range parsedMetrics {
+				results.Metrics[i] = &telemetry_edge.Metric{
+					Variant: &telemetry_edge.Metric_NameTagValue{NameTagValue: metric},
+				}
+			}
+		}
+	}
+
+	// Close out the temporary config server
+	_ = configServer.Close()
+	close(configServerErrors)
+	// ...capture any errors from the config server
+	for err := range configServerErrors {
+		results.Errors = append(results.Errors, "ConfigServer: "+err.Error())
+	}
+
+	return results, nil
 }

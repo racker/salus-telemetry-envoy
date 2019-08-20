@@ -21,12 +21,12 @@ import (
 	"github.com/petergtz/pegomock"
 	"github.com/phayes/freeport"
 	"github.com/racker/telemetry-envoy/ambassador"
+	"github.com/racker/telemetry-envoy/ambassador/matchers"
 	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	netContext "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"net"
@@ -35,80 +35,23 @@ import (
 	"time"
 )
 
-type TestingAmbassadorService struct {
-	idViaAttach       string
-	idViaKeepAlive    string
-	idViaPostMetric   string
-	idViaPostLogEvent string
-
-	done       chan struct{}
-	attaches   chan *telemetry_edge.EnvoySummary
-	keepAlives chan *telemetry_edge.KeepAliveRequest
-	logs       chan *telemetry_edge.LogEvent
-	metrics    chan *telemetry_edge.PostedMetric
-}
-
-func NewTestingAmbassadorService(done chan struct{}) *TestingAmbassadorService {
-	return &TestingAmbassadorService{
-		done:       done,
-		attaches:   make(chan *telemetry_edge.EnvoySummary, 1),
-		keepAlives: make(chan *telemetry_edge.KeepAliveRequest, 1),
-		logs:       make(chan *telemetry_edge.LogEvent, 1),
-		metrics:    make(chan *telemetry_edge.PostedMetric, 1),
-	}
-}
-
-func (s *TestingAmbassadorService) AttachEnvoy(summary *telemetry_edge.EnvoySummary, resp telemetry_edge.TelemetryAmbassador_AttachEnvoyServer) error {
-	if md, ok := metadata.FromIncomingContext(resp.Context()); ok {
-		s.idViaAttach = md.Get(ambassador.EnvoyIdHeader)[0]
-	}
-	s.attaches <- summary
-	<-s.done
-	return nil
-}
-
-func (s *TestingAmbassadorService) KeepAlive(ctx netContext.Context, req *telemetry_edge.KeepAliveRequest) (*telemetry_edge.KeepAliveResponse, error) {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		s.idViaKeepAlive = md.Get(ambassador.EnvoyIdHeader)[0]
-	}
-	s.keepAlives <- req
-	return &telemetry_edge.KeepAliveResponse{}, nil
-}
-
-func (s *TestingAmbassadorService) PostLogEvent(ctx netContext.Context, log *telemetry_edge.LogEvent) (*telemetry_edge.PostLogEventResponse, error) {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		s.idViaPostLogEvent = md.Get(ambassador.EnvoyIdHeader)[0]
-	}
-	s.logs <- log
-	return &telemetry_edge.PostLogEventResponse{}, nil
-}
-
-func (s *TestingAmbassadorService) PostMetric(ctx netContext.Context, metric *telemetry_edge.PostedMetric) (*telemetry_edge.PostMetricResponse, error) {
-	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		s.idViaPostMetric = md.Get(ambassador.EnvoyIdHeader)[0]
-	}
-	s.metrics <- metric
-	return &telemetry_edge.PostMetricResponse{}, nil
-}
-
 func TestStandardEgressConnection_Start(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
-	ambassadorPort, err := freeport.GetFreePort()
-	require.NoError(t, err)
-
-	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
-	listener, err := net.Listen("tcp", ambassadorAddr)
-	require.NoError(t, err)
+	listener, ambassadorAddr, err := setupListener(t)
+	//noinspection GoUnhandledErrorResult,GoNilness
+	defer listener.Close()
 
 	grpcServer := grpc.NewServer()
 	defer grpcServer.Stop()
 
+	// done simulates an ongoing connection by blocking the attach until test is complete
 	var done = make(chan struct{}, 1)
 	defer close(done)
-	ambassadorService := NewTestingAmbassadorService(done)
-	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
 
+	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+
+	//noinspection GoUnhandledErrorResult
 	go grpcServer.Serve(listener)
 
 	idGenerator := NewMockIdGenerator()
@@ -130,41 +73,33 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_TELEGRAF})
 	defer cancel()
 
-	select {
-	case summary := <-ambassadorService.attaches:
-		assert.Equal(t, "ourResourceId", summary.ResourceId)
-		assert.Equal(t, "id-1", ambassadorService.idViaAttach)
-		assert.Equal(t, "myZone", summary.Zone)
-	case <-time.After(500 * time.Millisecond):
-		t.Error("did not see attachment in time")
-	}
+	summary, respStream := ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
+		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer()).
+		GetCapturedArguments()
+	assert.Equal(t, "ourResourceId", summary.ResourceId)
+	assertIdFromContext(t, "id-1", respStream.Context())
+	assert.Equal(t, "myZone", summary.Zone)
 
-	select {
-	case <-ambassadorService.keepAlives:
-		// good
-		assert.Equal(t, "id-1", ambassadorService.idViaKeepAlive)
-	case <-time.After(100 * time.Millisecond):
-		t.Error("did not see keep alive in time")
-	}
+	ambassadorService.VerifyWasCalledEventually(pegomock.AtLeast(1), 100*time.Millisecond).
+		KeepAlive(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeKeepAliveRequest())
 }
 
 func TestStandardEgressConnection_AmbassadorStop(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
-	ambassadorPort, err := freeport.GetFreePort()
-	require.NoError(t, err)
-
-	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
-	listener, err := net.Listen("tcp", ambassadorAddr)
-	require.NoError(t, err)
+	listener, ambassadorAddr, err := setupListener(t)
+	//noinspection GoUnhandledErrorResult,GoNilness
+	defer listener.Close()
 
 	grpcServer := grpc.NewServer()
 	defer grpcServer.Stop()
 
+	// done simulates an ongoing connection by blocking the attach until test is complete
 	var done = make(chan struct{}, 1)
-	ambassadorService := NewTestingAmbassadorService(done)
-	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
 
+	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+
+	//noinspection GoUnhandledErrorResult
 	go grpcServer.Serve(listener)
 	defer grpcServer.Stop()
 
@@ -187,14 +122,8 @@ func TestStandardEgressConnection_AmbassadorStop(t *testing.T) {
 	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_TELEGRAF})
 	defer cancel()
 
-	select {
-	case summary := <-ambassadorService.attaches:
-		assert.Equal(t, "ourResourceId", summary.ResourceId)
-		assert.Equal(t, "id-1", ambassadorService.idViaAttach)
-		assert.Equal(t, "myZone", summary.Zone)
-	case <-time.After(500 * time.Millisecond):
-		t.Error("did not see attachment in time")
-	}
+	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
+		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
 
 	// Stop the ambassador
 	t.Log("stopping ambassador")
@@ -229,21 +158,22 @@ func TestStandardEgressConnection_MissingResourceId(t *testing.T) {
 func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
-	ambassadorPort, err := freeport.GetFreePort()
-	require.NoError(t, err)
-
-	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
-	listener, err := net.Listen("tcp", ambassadorAddr)
-	require.NoError(t, err)
+	listener, ambassadorAddr, err := setupListener(t)
+	//noinspection GoUnhandledErrorResult,GoNilness
+	defer listener.Close()
 
 	grpcServer := grpc.NewServer()
 	defer grpcServer.Stop()
 
-	done := make(chan struct{}, 1)
+	// done simulates an ongoing connection by blocking the attach until test is complete
+	var done = make(chan struct{}, 1)
 	defer close(done)
-	ambassadorService := NewTestingAmbassadorService(done)
-	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
 
+	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	pegomock.When(ambassadorService.PostMetric(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgePostedMetric())).
+		ThenReturn(&telemetry_edge.PostMetricResponse{}, nil)
+
+	//noinspection GoUnhandledErrorResult
 	go grpcServer.Serve(listener)
 	defer grpcServer.Stop()
 
@@ -264,13 +194,8 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_TELEGRAF})
 	defer cancel()
 
-	select {
-	case <-ambassadorService.attaches:
-		//continue
-	case <-time.After(500 * time.Millisecond):
-		t.Log("did not see attachment in time")
-		t.FailNow()
-	}
+	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
+		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
 
 	metric := &telemetry_edge.Metric{
 		Variant: &telemetry_edge.Metric_NameTagValue{
@@ -285,36 +210,110 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 			},
 		},
 	}
+	t.Log("Posting metric")
 	egressConnection.PostMetric(metric)
 
-	select {
-	case postedMetric := <-ambassadorService.metrics:
-		assert.Equal(t, "cpu", postedMetric.Metric.GetNameTagValue().Name)
-		assert.Equal(t, "id-1", ambassadorService.idViaPostMetric)
+	t.Log("Verifying server saw posted metric")
+	ctx, postedMetric := ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 100*time.Millisecond).
+		PostMetric(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgePostedMetric()).
+		GetCapturedArguments()
 
-	case <-time.After(100 * time.Millisecond):
-		t.Error("did not see posted metric in time")
+	assert.Equal(t, "cpu", postedMetric.Metric.GetNameTagValue().Name)
+	assertIdFromContext(t, "id-1", ctx)
+}
+
+func TestStandardEgressConnection_PostTestMonitorResults(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	listener, ambassadorAddr, err := setupListener(t)
+	//noinspection GoUnhandledErrorResult,GoNilness
+	defer listener.Close()
+
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+
+	// done simulates an ongoing connection by blocking the attach until test is complete
+	var done = make(chan struct{}, 1)
+	defer close(done)
+
+	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	pegomock.When(ambassadorService.PostTestMonitorResults(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeTestMonitorResults())).
+		ThenReturn(&telemetry_edge.PostTestMonitorResultsResponse{}, nil)
+
+	//noinspection GoUnhandledErrorResult
+	go grpcServer.Serve(listener)
+	defer grpcServer.Stop()
+
+	idGenerator := NewMockIdGenerator()
+	pegomock.When(idGenerator.Generate()).ThenReturn("id-1")
+
+	mockAgentsRunner := NewMockRouter()
+	viper.Set(config.ResourceId, "ourResourceId")
+	viper.Set(config.AmbassadorAddress, ambassadorAddr)
+	viper.Set("tls.disabled", true)
+
+	detachChan := make(chan struct{}, 1)
+	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
+		ambassador.NewNetworkDialOptionCreator())
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_TELEGRAF})
+	defer cancel()
+
+	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
+		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
+
+	metric := &telemetry_edge.Metric{
+		Variant: &telemetry_edge.Metric_NameTagValue{
+			NameTagValue: &telemetry_edge.NameTagValueMetric{
+				Name: "cpu",
+				Tags: map[string]string{
+					"cpu": "cpu1",
+				},
+				Fvalues: map[string]float64{
+					"usage": 12.34,
+				},
+			},
+		},
 	}
+	results := &telemetry_edge.TestMonitorResults{
+		CorrelationId: "test-1",
+		Errors:        []string{"simulated error"},
+		Metrics:       []*telemetry_edge.Metric{metric},
+	}
+	egressConnection.PostTestMonitorResults(results)
+
+	ctx, postedResults := ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 100*time.Millisecond).
+		PostTestMonitorResults(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeTestMonitorResults()).
+		GetCapturedArguments()
+
+	assert.Equal(t, "test-1", postedResults.GetCorrelationId())
+	assert.NotEmpty(t, postedResults.GetErrors())
+	assert.NotEmpty(t, postedResults.GetMetrics())
+	assert.Equal(t, "cpu", postedResults.GetMetrics()[0].GetNameTagValue().Name)
+	assertIdFromContext(t, "id-1", ctx)
 }
 
 func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
-	ambassadorPort, err := freeport.GetFreePort()
-	require.NoError(t, err)
-
-	ambassadorAddr := net.JoinHostPort("localhost", strconv.Itoa(ambassadorPort))
-	listener, err := net.Listen("tcp", ambassadorAddr)
-	require.NoError(t, err)
+	listener, ambassadorAddr, err := setupListener(t)
+	//noinspection GoUnhandledErrorResult,GoNilness
+	defer listener.Close()
 
 	grpcServer := grpc.NewServer()
 	defer grpcServer.Stop()
 
-	done := make(chan struct{}, 1)
+	// done simulates an ongoing connection by blocking the attach until test is complete
+	var done = make(chan struct{}, 1)
 	defer close(done)
-	ambassadorService := NewTestingAmbassadorService(done)
-	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
 
+	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	pegomock.When(ambassadorService.PostLogEvent(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeLogEvent())).
+		ThenReturn(&telemetry_edge.PostLogEventResponse{}, nil)
+
+	//noinspection ALL
 	go grpcServer.Serve(listener)
 	defer grpcServer.Stop()
 
@@ -335,25 +334,17 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	go egressConnection.Start(ctx, []telemetry_edge.AgentType{telemetry_edge.AgentType_FILEBEAT})
 	defer cancel()
 
-	select {
-	case <-ambassadorService.attaches:
-		//continue
-	case <-time.After(500 * time.Millisecond):
-		t.Log("did not see attachment in time")
-		t.FailNow()
-	}
+	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
+		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
 
 	egressConnection.PostLogEvent(telemetry_edge.AgentType_FILEBEAT, `{"testing":"value"}`)
 
-	select {
-	case logEvent := <-ambassadorService.logs:
-		assert.Equal(t, telemetry_edge.AgentType_FILEBEAT, logEvent.AgentType)
-		assert.Equal(t, `{"testing":"value"}`, logEvent.JsonContent)
-		assert.Equal(t, "id-1", ambassadorService.idViaPostLogEvent)
-
-	case <-time.After(100 * time.Millisecond):
-		t.Error("did not see posted metric in time")
-	}
+	ctx, logEvent := ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 100*time.Millisecond).
+		PostLogEvent(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeLogEvent()).
+		GetCapturedArguments()
+	assert.Equal(t, telemetry_edge.AgentType_FILEBEAT, logEvent.AgentType)
+	assert.Equal(t, `{"testing":"value"}`, logEvent.JsonContent)
+	assertIdFromContext(t, "id-1", ctx)
 }
 
 type testNetworkDialOptionCreator struct{ networks chan string }
@@ -413,4 +404,33 @@ func TestStandardEgressConnection_NetworkDialOptionCreator(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, networksExpected, networksTested, "expected to see tcp4 and tcp6")
+}
+
+func setupListener(t *testing.T) (net.Listener, string, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	ambassadorAddr := net.JoinHostPort("127.0.0.1", strconv.Itoa(listener.Addr().(*net.TCPAddr).Port))
+	return listener, ambassadorAddr, err
+}
+
+func setupMockAmbassadorServer(done chan struct{}, grpcServer *grpc.Server) *MockTelemetryAmbassadorServer {
+	ambassadorService := NewMockTelemetryAmbassadorServer()
+	pegomock.When(ambassadorService.AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())).
+		Then(func(params []pegomock.Param) pegomock.ReturnValues {
+			<-done
+			return nil
+		})
+	pegomock.When(ambassadorService.KeepAlive(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeKeepAliveRequest())).
+		ThenReturn(&telemetry_edge.KeepAliveResponse{}, nil)
+
+	telemetry_edge.RegisterTelemetryAmbassadorServer(grpcServer, ambassadorService)
+	return ambassadorService
+}
+
+// assertIdFromContext confirms the gRPC connection populated the metadata with the connecting
+// envoy's ID it provided
+func assertIdFromContext(t *testing.T, expectedId string, ctx context.Context) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	assert.True(t, ok)
+	assert.Equal(t, expectedId, md.Get(ambassador.EnvoyIdHeader)[0])
 }

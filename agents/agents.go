@@ -54,6 +54,7 @@ type SpecificAgentRunner interface {
 	EnsureRunningState(ctx context.Context, applyConfigs bool)
 	PurgeConfig() error
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
+	ProcessTestMonitor(correlationId string, content string) (*telemetry_edge.TestMonitorResults, error)
 	// Stop should stop the agent's process, if running
 	Stop()
 }
@@ -64,6 +65,7 @@ type Router interface {
 	Start(ctx context.Context)
 	ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall)
 	ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure)
+	ProcessTestMonitor(testMonitor *telemetry_edge.EnvoyInstructionTestMonitor) *telemetry_edge.TestMonitorResults
 }
 
 type noAppliedConfigsError struct{}
@@ -83,6 +85,7 @@ func IsNoAppliedConfigs(err error) bool {
 
 func init() {
 	viper.SetDefault(config.AgentsDataPath, config.DefaultAgentsDataPath)
+	viper.SetDefault(config.AgentsTestMonitorTimeout, config.DefaultAgentsTestMonitorTimeout)
 }
 
 func downloadExtractTarGz(outputPath, url string, exePath string) error {
