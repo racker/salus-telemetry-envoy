@@ -166,20 +166,11 @@ make snapshot
 
 ### Release packages
 
-Before performing any releases you will need to setup your Github token 
-[according to the Goreleaser docs](https://goreleaser.com/environment/#github-token)
-and install the RPM tooling using
+To perform a new release, create and push a new tag to GitHub, as shown below. You will want to look at the [the latest release](https://github.com/racker/salus-telemetry-envoy/releases/latest) to determine the next appropriate tag/version to apply using [semantic versioning](https://semver.org/).
 
 ```
-brew install rpm
-```
-
-To perform a new release of the packages you must first push a new tag to github and then run `make release`.  For example:
-
-```
-git tag -a 0.1.1 -m 'Testing goreleaser'
+git tag -a 0.1.1 -m 'Description of major feature/fix for release'
 git push --tags
-make release
 ``` 
 
 The packages should now be available at https://github.com/racker/salus-telemetry-envoy/releases.
