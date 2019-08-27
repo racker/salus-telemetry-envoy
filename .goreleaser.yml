@@ -55,5 +55,5 @@ changelog:
     - '^build:'
 release:
   github:
-    owner: racker
-    name: salus-telemetry-envoy
+    owner: GeorgeJahad
+    name: try-flyway
