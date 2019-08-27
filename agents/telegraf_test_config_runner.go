@@ -28,13 +28,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // TelegrafTestConfigRunner encapsulates the process-spawning aspects of handling telegraf's --test
 // mode of running a configuration one-shot
 type TelegrafTestConfigRunner interface {
 	StartTestConfigServer(configToml []byte, configServerErrors chan error, listener net.Listener) io.Closer
-	RunCommand(hostPort string, exePath string, basePath string) ([]byte, error)
+	RunCommand(hostPort string, exePath string, basePath string, timeout time.Duration) ([]byte, error)
 }
 
 type TelegrafTestConfigRunnerBuilder func(testConfigServerId string, testConfigServerToken string) TelegrafTestConfigRunner
@@ -79,9 +80,16 @@ func (tcr *defaultTelegrafTestConfigRunner) StartTestConfigServer(configToml []b
 	return configServer
 }
 
-func (tcr *defaultTelegrafTestConfigRunner) RunCommand(hostPort string, exePath string, basePath string) ([]byte, error) {
+func (tcr *defaultTelegrafTestConfigRunner) RunCommand(hostPort string, exePath string, basePath string, timeout time.Duration) ([]byte, error) {
+
+	var execTimeout time.Duration
+	if timeout == 0 {
+		execTimeout = viper.GetDuration(config.AgentsTestMonitorTimeout)
+	} else {
+		execTimeout = timeout
+	}
 	testConfigServerUrl := fmt.Sprintf("http://%s/%s", hostPort, tcr.testConfigServerId)
-	cmdCtx, _ := context.WithTimeout(context.Background(), viper.GetDuration(config.AgentsTestMonitorTimeout))
+	cmdCtx, _ := context.WithTimeout(context.Background(), execTimeout)
 	cmd := exec.CommandContext(cmdCtx, exePath,
 		"--test",
 		"--config", testConfigServerUrl)

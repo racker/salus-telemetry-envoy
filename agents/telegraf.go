@@ -276,7 +276,7 @@ func (tr *TelegrafRunner) hasRequiredPaths() bool {
 	return true
 }
 
-func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content string) (*telemetry_edge.TestMonitorResults, error) {
+func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error) {
 
 	// Convert content to TOML
 
@@ -315,7 +315,7 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 		CorrelationId: correlationId,
 		Errors:        []string{},
 	}
-	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath)
+	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath, timeout)
 	log.
 		WithError(err).
 		WithField("correlationId", correlationId).
@@ -324,9 +324,17 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 		Debug("ran telegraf with test config")
 
 	if err != nil {
-		results.Errors = append(results.Errors, "Command: "+err.Error())
 		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitErrMessage := err.Error()
+			// checking error's message is portable and easy way to determine if the exec timeout was exceeded
+			if exitErrMessage == "signal: killed" {
+				results.Errors = append(results.Errors, "Command: took too long to run")
+			} else {
+				results.Errors = append(results.Errors, "Command: "+err.Error())
+			}
 			results.Errors = append(results.Errors, "CommandStderr: "+string(exitErr.Stderr))
+		} else {
+			results.Errors = append(results.Errors, "Command: "+err.Error())
 		}
 	} else {
 		// ... and process output

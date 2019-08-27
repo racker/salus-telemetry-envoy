@@ -35,6 +35,7 @@ import (
 	"path"
 	"syscall"
 	"testing"
+	"time"
 )
 
 func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
@@ -300,11 +301,12 @@ func TestTelegrafRunner_ProcessTestMonitor_Normal(t *testing.T) {
 	_ = stdoutFile.Close()
 
 	pegomock.When(
-		tcr.RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString())).
+		tcr.RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString(), matchers.AnyTimeDuration())).
 		ThenReturn(agentStdout, nil)
 
 	telegrafRunner := &agents.TelegrafRunner{}
-	results, err := telegrafRunner.ProcessTestMonitor("correlation-1", `{"type":"cpu"}`)
+	results, err := telegrafRunner.ProcessTestMonitor("correlation-1",
+		`{"type":"cpu"}`, 3*time.Second)
 	require.NoError(t, err)
 
 	require.NotNil(t, results)
@@ -330,13 +332,14 @@ func TestTelegrafRunner_ProcessTestMonitor_Normal(t *testing.T) {
 	//noinspection GoUnhandledErrorResult
 	defer listener.Close()
 
-	hostPort, exe, basePath := tcr.VerifyWasCalledOnce().
-		RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).
+	hostPort, exe, basePath, timeout := tcr.VerifyWasCalledOnce().
+		RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString(), matchers.AnyTimeDuration()).
 		GetCapturedArguments()
 	assert.Contains(t, hostPort, "127.0.0.1:")
 	assert.Equal(t, exe, "CURRENT/bin/telegraf")
 	// empty value expected since runner's full config purposely wasn't loaded
 	assert.Equal(t, basePath, "")
+	assert.Equal(t, 3*time.Second, timeout)
 
 	stubConfigServer.VerifyWasCalledOnce().
 		Close()
@@ -367,11 +370,12 @@ func TestTelegrafRunner_ProcessTestMonitor_Errors(t *testing.T) {
 	}
 
 	pegomock.When(
-		tcr.RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString())).
+		tcr.RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString(), matchers.AnyTimeDuration())).
 		ThenReturn(nil, cmdError)
 
 	telegrafRunner := &agents.TelegrafRunner{}
-	results, err := telegrafRunner.ProcessTestMonitor("correlation-1", `{"type":"cpu"}`)
+	results, err := telegrafRunner.ProcessTestMonitor("correlation-1",
+		`{"type":"cpu"}`, 3*time.Second)
 	require.NoError(t, err)
 
 	require.NotNil(t, results)
@@ -391,8 +395,8 @@ func TestTelegrafRunner_ProcessTestMonitor_Errors(t *testing.T) {
 	assert.Equal(t, "[inputs]\n\n  [[inputs.cpu]]\n", string(configToml))
 	assert.NotNil(t, listener)
 
-	hostPort, exe, basePath := tcr.VerifyWasCalledOnce().
-		RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString()).
+	hostPort, exe, basePath, _ := tcr.VerifyWasCalledOnce().
+		RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString(), matchers.AnyTimeDuration()).
 		GetCapturedArguments()
 	assert.Contains(t, hostPort, "127.0.0.1:")
 	assert.Equal(t, exe, "CURRENT/bin/telegraf")
