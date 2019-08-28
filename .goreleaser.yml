@@ -46,7 +46,8 @@ nfpms:
     files:
       pkg/files/rackspace-monitoring-envoy.service: /lib/systemd/system/rackspace-monitoring-envoy.service
       pkg/files/rackspace-monitoring-envoy-config.yaml: /etc/salus/rackspace-monitoring-envoy-config.yaml
-    empty_folders: /var/lib/telemetry-envoy
+    empty_folders:
+    - /var/lib/telemetry-envoy
 checksum:
   name_template: 'checksums.txt'
 snapshot:
