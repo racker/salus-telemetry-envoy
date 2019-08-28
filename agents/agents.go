@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"time"
 )
 
 const (
@@ -54,7 +55,7 @@ type SpecificAgentRunner interface {
 	EnsureRunningState(ctx context.Context, applyConfigs bool)
 	PurgeConfig() error
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
-	ProcessTestMonitor(correlationId string, content string) (*telemetry_edge.TestMonitorResults, error)
+	ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error)
 	// Stop should stop the agent's process, if running
 	Stop()
 }

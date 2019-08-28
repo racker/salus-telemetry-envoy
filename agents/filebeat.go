@@ -29,6 +29,7 @@ import (
 	"path"
 	"path/filepath"
 	"text/template"
+	"time"
 )
 
 const (
@@ -236,6 +237,6 @@ func (fbr *FilebeatRunner) exePath() string {
 	return filepath.Join(currentVerLink, binSubpath, "filebeat")
 }
 
-func (fbr *FilebeatRunner) ProcessTestMonitor(correlationId string, content string) (*telemetry_edge.TestMonitorResults, error) {
+func (fbr *FilebeatRunner) ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error) {
 	return nil, errors.New("Test monitor not supported by filebeat agent")
 }

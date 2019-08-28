@@ -118,6 +118,8 @@ message EnvoyInstructionTestMonitor {
     string correlationId = 1;
     AgentType agentType = 2;
     string content = 3;
+    // declares the maximum amount of time in seconds the test operation can run
+    int64 timeout = 4;
 }
 
 message TestMonitorResults {

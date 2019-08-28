@@ -18,12 +18,15 @@ package agents
 
 import (
 	"fmt"
+	"github.com/racker/telemetry-envoy/config"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"testing"
+	"time"
 )
 
 //noinspection GoUnhandledErrorResult
@@ -57,9 +60,37 @@ func TestDefaultTelegrafTestConfigRunner_RunCommand(t *testing.T) {
 
 	tcr := telegrafTestConfigRunnerBuilder("server-1", "token-1")
 
-	output, err := tcr.RunCommand("127.0.0.1:65432", "./telegraf-test-config", "testdata")
+	output, err := tcr.RunCommand("127.0.0.1:65432", "./telegraf-test-config",
+		"testdata", 1*time.Second)
 	require.NoError(t, err)
 
 	assert.Equal(t, "args=--test --config http://127.0.0.1:65432/server-1\nINFLUX_TOKEN=token-1\n",
 		string(output))
+}
+
+func TestDefaultTelegrafTestConfigRunner_RunCommand_Timeout(t *testing.T) {
+
+	tcr := telegrafTestConfigRunnerBuilder("server-1", "token-1")
+
+	output, err := tcr.RunCommand("127.0.0.1:65432", "./telegraf-test-config-slow",
+		"testdata", 100*time.Millisecond)
+	assert.Error(t, err)
+	assert.Equal(t, "signal: killed", err.Error())
+
+	assert.Equal(t, "", string(output))
+}
+
+func TestDefaultTelegrafTestConfigRunner_RunCommand_TimeoutDefault(t *testing.T) {
+
+	tcr := telegrafTestConfigRunnerBuilder("server-1", "token-1")
+
+	// Use a configured-default timeout longer than the script's sleep to tell the difference from
+	// previous unit test
+	viper.Set(config.AgentsTestMonitorTimeout, 2*time.Second)
+
+	output, err := tcr.RunCommand("127.0.0.1:65432", "./telegraf-test-config-slow",
+		"testdata", 0)
+	require.NoError(t, err)
+
+	assert.Equal(t, "slow but finished\n", string(output))
 }

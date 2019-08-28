@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# This one just needs to sleep longer than the exec timeout given in the test
+
+sleep 1
+echo "slow but finished"

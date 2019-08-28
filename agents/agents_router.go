@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 type StandardAgentsRouter struct {
@@ -209,7 +210,9 @@ func (ar *StandardAgentsRouter) ProcessTestMonitor(testMonitor *telemetry_edge.E
 	agentType := testMonitor.GetAgentType()
 	if specificRunner, exists := specificAgentRunners[agentType]; exists {
 
-		results, err := specificRunner.ProcessTestMonitor(testMonitor.GetCorrelationId(), testMonitor.GetContent())
+		results, err := specificRunner.ProcessTestMonitor(
+			testMonitor.GetCorrelationId(), testMonitor.GetContent(),
+			time.Duration(testMonitor.GetTimeout())*time.Second)
 		// returned error is a shorthand to create a test monitor results with only errors reported
 		if err != nil {
 			log.WithError(err).
