@@ -4,7 +4,7 @@ After=network.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/telemetry-envoy run --config /etc/rackspace-monitoring-envoy-config.yaml
+ExecStart=exec chpst -u root telemetry-envoy run --config=/etc/salus/telemetry-envoy.yaml 2>&1
 Restart=always
 RestartSec=5
 

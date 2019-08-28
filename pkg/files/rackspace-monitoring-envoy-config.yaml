@@ -1,18 +1,13 @@
-resource_id: "development:0"
+#resource_id: "{{ resourceId }}"
 tls:
   auth_service:
-    url: http://localhost:8082
-    token_provider: static
+    url: https://salus-auth-serv.dev.monplat.rackspace.net
+    token_provider: keystone_v2
   token_providers:
-    static:
-      headers:
-        - name: "X-Tenant-Id"
-          value: "aaaaaa"
-        - name: "X-Roles"
-          value: "compute:default"
+    keystone_v2:
+#      username: "{{ cloudUsername }}"
+#      apikey: "{{ cloudApiKey }}"
 ambassador:
-  address: localhost:6565
-lumberjack:
-  bind: localhost:5044
+  address: salus-ambassador.dev.monplat.rackspace.net:443
 agents:
-  dataPath: data-telemetry-envoy
+  dataPath: /var/lib/telemetry-envoy
