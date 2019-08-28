@@ -43,7 +43,7 @@ nfpms:
       postinstall: pkg/scripts/postinstall.sh
     files:
       pkg/files/rackspace-monitoring-envoy.service: /lib/systemd/system/rackspace-monitoring-envoy.service
-      pkg/files/rackspace-monitoring-envoy-config.yaml: /etc/salus/rackspace-monitoring-envoy-config.yaml
+      pkg/files/telemetry-envoy.yaml: /etc/salus/telemetry-envoy.yaml
     empty_folders:
     - /var/lib/telemetry-envoy
 checksum:
