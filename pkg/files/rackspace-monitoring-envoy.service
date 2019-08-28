@@ -1,0 +1,12 @@
+[Unit]
+Description=Rackspace Monitoring Envoy Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/telemetry-envoy run --config /etc/rackspace-monitoring-envoy-config.yaml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
