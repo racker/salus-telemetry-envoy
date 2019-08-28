@@ -7,7 +7,9 @@ builds:
   env:
   - CGO_ENABLED=0
   goos:
+    - darwin
     - linux
+    - windows
   ignore:
   - goos: darwin
     goarch: 386
@@ -60,5 +62,5 @@ changelog:
     - '^build:'
 release:
   github:
-    owner: GeorgeJahad
-    name: try-flyway
+    owner: racker
+    name: salus-telemetry-envoy
