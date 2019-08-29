@@ -33,6 +33,7 @@ func TestConvertJsonToToml(t *testing.T) {
 	tests := []struct {
 		name        string
 		extraLabels map[string]string
+		interval    int64
 	}{
 		{name: "cpu"},
 		{name: "disk"},
@@ -41,6 +42,7 @@ func TestConvertJsonToToml(t *testing.T) {
 		{name: "ping", extraLabels: map[string]string{
 			"target_tenant": "t-1",
 		}},
+		{name: "cpu_with_interval", interval: 15},
 	}
 
 	for _, tc := range tests {
@@ -53,7 +55,7 @@ func TestConvertJsonToToml(t *testing.T) {
 			jsonBytes, err := ioutil.ReadAll(jsonFile)
 			require.NoError(t, err)
 
-			result, err := agents.ConvertJsonToTelegrafToml(string(jsonBytes), tc.extraLabels)
+			result, err := agents.ConvertJsonToTelegrafToml(string(jsonBytes), tc.extraLabels, tc.interval)
 			require.NoError(t, err)
 
 			expectedFile, err := os.Open(path.Join("testdata",

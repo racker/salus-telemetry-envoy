@@ -20,16 +20,20 @@ import "time"
 
 // Viper configuration keys used inter-package
 const (
-	AgentsDataPath                 = "agents.dataPath"
-	AgentsTerminationTimeoutConfig = "agents.terminationTimeout"
-	AgentsRestartDelayConfig       = "agents.restartDelay"
-	AgentsTestMonitorTimeout       = "agents.testMonitorTimeout"
-	IngestLumberjackBind           = "ingest.lumberjack.bind"
-	IngestTelegrafJsonBind         = "ingest.telegraf.json.bind"
-	AmbassadorAddress              = "ambassador.address"
-	ResourceId                     = "resource_id"
-	Zone                           = "zone"
+	AgentsDataPath                  = "agents.dataPath"
+	AgentsTerminationTimeoutConfig  = "agents.terminationTimeout"
+	AgentsRestartDelayConfig        = "agents.restartDelay"
+	AgentsTestMonitorTimeout        = "agents.testMonitorTimeout"
+	AgentsDefaultMonitoringInterval = "agents.defaultMonitoringInterval"
+	AgentsMaxFlushInterval          = "agents.maxFlushInterval"
+	IngestLumberjackBind            = "ingest.lumberjack.bind"
+	IngestTelegrafJsonBind          = "ingest.telegraf.json.bind"
+	AmbassadorAddress               = "ambassador.address"
+	ResourceId                      = "resource_id"
+	Zone                            = "zone"
 
-	DefaultAgentsDataPath           = "/var/lib/telemetry-envoy"
-	DefaultAgentsTestMonitorTimeout = 30 * time.Second
+	DefaultAgentsDataPath                  = "/var/lib/telemetry-envoy"
+	DefaultAgentsTestMonitorTimeout        = 30 * time.Second
+	DefaultAgentsDefaultMonitoringInterval = 60 * time.Second
+	DefaultAgentsMaxFlushInterval          = 60 * time.Second
 )

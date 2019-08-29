@@ -87,6 +87,8 @@ func IsNoAppliedConfigs(err error) bool {
 func init() {
 	viper.SetDefault(config.AgentsDataPath, config.DefaultAgentsDataPath)
 	viper.SetDefault(config.AgentsTestMonitorTimeout, config.DefaultAgentsTestMonitorTimeout)
+	viper.SetDefault(config.AgentsDefaultMonitoringInterval, config.DefaultAgentsDefaultMonitoringInterval)
+	viper.SetDefault(config.AgentsMaxFlushInterval, config.DefaultAgentsMaxFlushInterval)
 }
 
 func downloadExtractTarGz(outputPath, url string, exePath string) error {
@@ -171,7 +173,7 @@ func handleContentConfigurationOp(op *telemetry_edge.ConfigurationOp, configInst
 		case ConversionNone:
 			finalConfig = []byte(op.GetContent())
 		case ConversionJsonToTelegrafToml:
-			finalConfig, err = ConvertJsonToTelegrafToml(op.GetContent(), op.ExtraLabels)
+			finalConfig, err = ConvertJsonToTelegrafToml(op.GetContent(), op.ExtraLabels, op.Interval)
 			if err != nil {
 				log.WithError(err).WithField("op", op).Warn("failed to convert config blob to TOML")
 				return false
