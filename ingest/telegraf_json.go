@@ -114,7 +114,7 @@ func (t *TelegrafJson) handleConnection(ctx context.Context, conn net.Conn) {
 			if err != nil {
 				log.WithError(err).WithField("content", string(content)).Warn("failed to decode telegraf json metric")
 			} else {
-				log.WithField("m", m).Debug("unmarshaled metric line")
+				log.WithField("m", &m).Debug("successfully unmarshaled json metric")
 				t.metrics <- &m
 			}
 		}
