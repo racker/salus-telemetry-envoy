@@ -23,6 +23,7 @@ import (
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 	"strings"
+	"time"
 )
 
 type Conversion int
@@ -32,7 +33,7 @@ const (
 	ConversionJsonToTelegrafToml
 )
 
-func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string) ([]byte, error) {
+func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string, interval int64) ([]byte, error) {
 
 	jsonDecoder := json.NewDecoder(strings.NewReader(configJson))
 	var flatMap map[string]interface{}
@@ -66,6 +67,10 @@ func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string)
 	finalPluginConfig := normalizeKeys(flatMap)
 	if extraLabels != nil && len(extraLabels) > 0 {
 		finalPluginConfig["tags"] = extraLabels
+	}
+
+	if interval != 0 {
+		finalPluginConfig["interval"] = (time.Duration(interval) * time.Second).String()
 	}
 
 	inputPlugins[pluginName] = append(inputPlugins[pluginName], finalPluginConfig)

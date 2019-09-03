@@ -40,22 +40,29 @@ import (
 
 func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 	tests := []struct {
-		opType telemetry_edge.ConfigurationOp_Type
+		name             string
+		opType           telemetry_edge.ConfigurationOp_Type
+		interval         int64
+		expectedInterval string
 	}{
-		{opType: telemetry_edge.ConfigurationOp_CREATE},
-		{opType: telemetry_edge.ConfigurationOp_MODIFY},
+		{name: "create", opType: telemetry_edge.ConfigurationOp_CREATE},
+		{name: "create_with_interval", opType: telemetry_edge.ConfigurationOp_CREATE, interval: 62, expectedInterval: "1m2s"},
+		{name: "modify", opType: telemetry_edge.ConfigurationOp_MODIFY},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.opType.String(), func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			pegomock.RegisterMockTestingT(t)
 
 			dataPath, err := ioutil.TempDir("", "telegraf_test")
 			require.NoError(t, err)
+			//noinspection GoUnhandledErrorResult
 			defer os.RemoveAll(dataPath)
 
 			runner := &agents.TelegrafRunner{}
 			viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+			viper.Set(config.AgentsDefaultMonitoringInterval, 30*time.Second)
+			viper.Set(config.AgentsMaxFlushInterval, 31*time.Second)
 			err = runner.Load(dataPath)
 			require.NoError(t, err)
 
@@ -66,9 +73,10 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 				AgentType: telemetry_edge.AgentType_TELEGRAF,
 				Operations: []*telemetry_edge.ConfigurationOp{
 					{
-						Id:      "a-b-c",
-						Type:    tt.opType,
-						Content: "{\"type\":\"mem\"}",
+						Id:       "a-b-c",
+						Type:     tt.opType,
+						Content:  "{\"type\":\"mem\"}",
+						Interval: tt.interval,
 					},
 				},
 			}
@@ -78,9 +86,16 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			content, err := runner.GetCurrentConfig()
 			require.NoError(t, err)
 
+			// assert the [agent] level interval
+			assert.Contains(t, string(content), "interval = \"30s\"")
+			assert.Contains(t, string(content), "flush_interval = \"31s\"")
 			assert.Contains(t, string(content), "outputs.socket_writer")
 			assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
 			assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
+			// optionally assert the per plugin interval
+			if tt.expectedInterval != "" {
+				assert.Contains(t, string(content), fmt.Sprintf("interval = \"%s\"", tt.expectedInterval))
+			}
 		})
 	}
 }

@@ -74,6 +74,8 @@ message ConfigurationOp {
     string content = 4;
     // conveys extra labels/tags that should be associated with the generated measurements
     map<string,string> extraLabels = 5;
+    // monitoring interval, in seconds, value of 0 means use default
+    int64 interval = 6;
 }
 
 // mainly used to test the ambassador->envoy liveness of the channel, but could eventually

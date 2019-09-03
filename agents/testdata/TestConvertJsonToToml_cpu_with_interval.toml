@@ -1,0 +1,8 @@
+[inputs]
+
+  [[inputs.cpu]]
+    collect_cpu_time = false
+    interval = "15s"
+    percpu = false
+    report_active = false
+    totalcpu = false

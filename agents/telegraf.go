@@ -38,8 +38,8 @@ import (
 
 var telegrafMainConfigTmpl = template.Must(template.New("telegrafMain").Parse(`
 [agent]
-  interval = "10s"
-  flush_interval = "10s"
+  interval = "{{.DefaultMonitoringInterval}}"
+  flush_interval = "{{.MaxFlushInterval}}"
   flush_jitter = "2s"
   omit_hostname = true
 [[outputs.socket_writer]]
@@ -55,8 +55,10 @@ var (
 )
 
 type telegrafMainConfigData struct {
-	IngestHost string
-	IngestPort string
+	IngestHost                string
+	IngestPort                string
+	DefaultMonitoringInterval time.Duration
+	MaxFlushInterval          time.Duration
 }
 
 type TelegrafRunner struct {
@@ -175,7 +177,7 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 	case telemetry_edge.ConfigurationOp_CREATE, telemetry_edge.ConfigurationOp_MODIFY:
 		var finalConfig []byte
 		var err error
-		finalConfig, err = ConvertJsonToTelegrafToml(op.GetContent(), op.ExtraLabels)
+		finalConfig, err = ConvertJsonToTelegrafToml(op.GetContent(), op.ExtraLabels, op.Interval)
 		if err != nil {
 			log.WithError(err).WithField("op", op).Warn("failed to convert config blob to TOML")
 			return false
@@ -246,8 +248,10 @@ func (tr *TelegrafRunner) Stop() {
 
 func (tr *TelegrafRunner) createMainConfig() ([]byte, error) {
 	data := &telegrafMainConfigData{
-		IngestHost: tr.ingestHost,
-		IngestPort: tr.ingestPort,
+		IngestHost:                tr.ingestHost,
+		IngestPort:                tr.ingestPort,
+		DefaultMonitoringInterval: viper.GetDuration(config.AgentsDefaultMonitoringInterval),
+		MaxFlushInterval:          viper.GetDuration(config.AgentsMaxFlushInterval),
 	}
 	var b bytes.Buffer
 
@@ -280,7 +284,7 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 
 	// Convert content to TOML
 
-	configToml, err := ConvertJsonToTelegrafToml(content, nil)
+	configToml, err := ConvertJsonToTelegrafToml(content, nil, 0)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to convert config content")
 	}
