@@ -1,0 +1,13 @@
+#resource_id: "{{ resourceId }}"
+tls:
+  auth_service:
+    url: https://salus-auth-serv.dev.monplat.rackspace.net
+    token_provider: keystone_v2
+  token_providers:
+    keystone_v2:
+#      username: "{{ cloudUsername }}"
+#      apikey: "{{ cloudApiKey }}"
+ambassador:
+  address: salus-ambassador.dev.monplat.rackspace.net:443
+agents:
+  dataPath: /var/lib/telemetry-envoy
