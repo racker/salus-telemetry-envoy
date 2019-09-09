@@ -89,10 +89,10 @@ func showExampleDetachedInstructions() {
 					Install: &telemetry_edge.EnvoyInstructionInstall{
 						Agent: &telemetry_edge.Agent{
 							Type:    telemetry_edge.AgentType_TELEGRAF,
-							Version: "1.12.0",
+							Version: "1.11.0",
 						},
-						Url: "https://dl.influxdata.com/telegraf/releases/telegraf-1.12.0_darwin_amd64.tar.gz",
-						Exe: "./telegraf/usr/bin/telegraf",
+						Url: "https://homebrew.bintray.com/bottles/telegraf-1.11.0.high_sierra.bottle.tar.gz",
+						Exe: "telegraf/1.11.0/bin/telegraf",
 					},
 				},
 			},
