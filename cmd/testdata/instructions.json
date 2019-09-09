@@ -1,0 +1,27 @@
+{
+  "instructions": [
+    {
+      "install": {
+        "agent": {
+          "version": "1.11.0"
+        },
+        "url": "https://homebrew.bintray.com/bottles/telegraf-1.11.0.high_sierra.bottle.tar.gz",
+        "exe": "telegraf/1.11.0/bin/telegraf"
+      }
+    },
+    {
+      "configure": {
+        "operations": [
+          {
+            "id": "monitor-1",
+            "content": "{\"type\": \"cpu\"}",
+            "extraLabels": {
+              "detached": "true"
+            },
+            "interval": "10"
+          }
+        ]
+      }
+    }
+  ]
+}

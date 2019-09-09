@@ -139,6 +139,27 @@ telemetry-envoy run --debug --config=envoy-config-provided.yml
 The `envoy-config-provided.yml` can be replaced with one of the other config files located there depending on
 the scenario currently running on your system.
 
+### Running detached from an Ambassador
+
+Envoy includes a sub-command called `detached` that can be used to test the Envoy's agent download and configuration mechanism without connecting to an Ambassador. 
+
+The sub-command replaces the support of the Ambassador with two mechanisms:
+
+- Ingested telemetry (metrics and logs) is encoded to JSON and output to stdout
+- Agent installation and configuration instructions are loaded from a JSON file
+
+The instructions file must be structured for unmarshaling into the `DetachedInstructions` protobuf message, declared in the Telemetry Edge protocol. [This example file](cmd/testdata/instructions.json) installs an instance of telegraf and configures a CPU monitor.
+
+The path to the instructions file is passed via `--instructions`. A data directory path should be provided via `--data-path` since the default is not likely suitable for local development environments.
+
+An example invocation of this sub-command is:
+
+```bash
+./telemetry-envoy detached --instructions=cmd/testdata/instructions.json --data-path=data
+```
+
+With this sub-command, logs are output to stderr so that file descriptor redirects can be used to separate the envoy logging from the posted telemetry content.
+
 ### gRPC code generating
 
 When first setting up the project and after the `telemetry_edge/telemetry-edge.proto` file

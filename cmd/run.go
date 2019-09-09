@@ -20,15 +20,10 @@ import (
 	"context"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/ambassador"
-	"github.com/racker/telemetry-envoy/config"
 	"github.com/racker/telemetry-envoy/ingest"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 var runCmd = &cobra.Command{
@@ -68,28 +63,6 @@ var runCmd = &cobra.Command{
 	},
 }
 
-func handleInterrupts(body func(ctx context.Context)) {
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt, os.Kill, syscall.SIGTERM)
-
-	rootCtx, cancel := context.WithCancel(context.Background())
-
-	body(rootCtx)
-
-	for {
-		select {
-		case <-signalChan:
-			log.Info("cancelling application context")
-			cancel()
-		case <-rootCtx.Done():
-			// allow for agent processes to be notified
-			time.Sleep(1 * time.Second)
-			os.Exit(0)
-		}
-	}
-
-}
-
 func init() {
 	rootCmd.AddCommand(runCmd)
 
@@ -101,11 +74,4 @@ func init() {
 
 	runCmd.Flags().String("key", "", "Private key to use for authentication")
 	viper.BindPFlag("tls.key", runCmd.Flag("key"))
-
-	runCmd.Flags().String("resource-id", "", "Identifier of the resource where this Envoy is running")
-	viper.BindPFlag(config.ResourceId, runCmd.Flag("resource-id"))
-
-	runCmd.Flags().String("data-path", config.DefaultAgentsDataPath,
-		"Data directory where Envoy stores downloaded agents and write agent configs")
-	viper.BindPFlag(config.AgentsDataPath, runCmd.Flag("data-path"))
 }

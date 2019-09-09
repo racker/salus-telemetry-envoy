@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/racker/telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -52,6 +53,13 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.telemetry-envoy.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
+
+	rootCmd.PersistentFlags().String("resource-id", "", "Identifier of the resource where this Envoy is running")
+	viper.BindPFlag(config.ResourceId, rootCmd.PersistentFlags().Lookup("resource-id"))
+
+	rootCmd.PersistentFlags().String("data-path", config.DefaultAgentsDataPath,
+		"Data directory where Envoy stores downloaded agents and write agent configs")
+	viper.BindPFlag(config.AgentsDataPath, rootCmd.PersistentFlags().Lookup("data-path"))
 }
 
 // initConfig reads in config file and ENV variables if set.
