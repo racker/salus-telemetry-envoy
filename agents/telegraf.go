@@ -199,7 +199,7 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 func (tr *TelegrafRunner) PostInstall() error {
 	if runtime.GOOS == "linux" {
 		setcapCmd := exec.Command("setcap", "cap_net_raw=eip", tr.exePath())
-		setcapOutput, err := setcapCmd.Output()
+		setcapOutput, err := setcapCmd.CombinedOutput()
 		if err != nil {
 			log.WithError(err).
 				WithField("agentExe", tr.exePath()).
