@@ -17,6 +17,7 @@
 package agents
 
 import (
+	"github.com/pkg/errors"
 	"github.com/syndtr/gocapability/capability"
 )
 
@@ -26,18 +27,18 @@ func addNetRawCapabilities(exePath string) error {
 
 	c, err := capability.NewFile2(exePath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to open exe")
 	}
 	err = c.Load()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to load capabilities")
 	}
 
 	c.Set(capability.EFFECTIVE|capability.PERMITTED|capability.INHERITABLE, capability.CAP_NET_RAW)
 
 	err = c.Apply(capability.CAPS)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to apply capabilities")
 	}
 
 	return nil
