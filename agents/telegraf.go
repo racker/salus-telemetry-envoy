@@ -196,10 +196,12 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 }
 
 func (tr *TelegrafRunner) PostInstall() error {
-	err := addNetRawCapabilities(tr.exePath())
+	resolvedExePath := path.Join(tr.basePath, tr.exePath())
+
+	err := addNetRawCapabilities(resolvedExePath)
 	if err != nil {
 		log.WithError(err).
-			WithField("agentExe", tr.exePath()).
+			WithField("agentExe", resolvedExePath).
 			Warn("failed to set net_raw capabilities on telegraf, native ping will not work")
 	}
 
