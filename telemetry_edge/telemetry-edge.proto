@@ -40,6 +40,11 @@ message EnvoyInstruction {
     }
 }
 
+// DetachedInstructions is used for offline, detached loading of instructions from a file.
+message DetachedInstructions {
+    repeated EnvoyInstruction instructions = 1;
+}
+
 message EnvoyInstructionInstall {
     Agent agent = 1;
     string url = 2;

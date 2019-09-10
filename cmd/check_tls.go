@@ -57,8 +57,8 @@ var checkTlsCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(checkTlsCmd)
 
-	runCmd.Flags().String("ambassador", "", "Ambassador host:port to verify")
-	if err := viper.BindPFlag(config.AmbassadorAddress, runCmd.Flag("ambassador")); err != nil {
+	checkTlsCmd.Flags().String("ambassador", "", "Ambassador host:port to verify")
+	if err := viper.BindPFlag(config.AmbassadorAddress, checkTlsCmd.Flag("ambassador")); err != nil {
 		logrus.WithError(err).Fatal("viper setup failed")
 	}
 }
