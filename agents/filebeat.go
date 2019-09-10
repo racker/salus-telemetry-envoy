@@ -82,6 +82,10 @@ func (fbr *FilebeatRunner) SetCommandHandler(handler CommandHandler) {
 	fbr.commandHandler = handler
 }
 
+func (fbr *FilebeatRunner) PostInstall() error {
+	return nil
+}
+
 func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
 	log.Debug("ensuring filebeat is in correct running state")
 

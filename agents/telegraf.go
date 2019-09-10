@@ -31,6 +31,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"text/template"
 	"time"
@@ -193,6 +194,23 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 		return false
 	}
 	return false
+}
+
+func (tr *TelegrafRunner) PostInstall() error {
+	if runtime.GOOS == "linux" {
+		setcapCmd := exec.Command("setcap", "cap_net_raw=eip", tr.exePath())
+		setcapOutput, err := setcapCmd.Output()
+		if err != nil {
+			log.WithError(err).
+				WithField("agentExe", tr.exePath()).
+				WithField("output", string(setcapOutput)).
+				Warn("failed to set net_raw capabilities on telegraf, native ping will not work")
+		} else {
+			log.Debugf("setcap: %s", string(setcapOutput))
+		}
+	}
+
+	return nil
 }
 
 func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {

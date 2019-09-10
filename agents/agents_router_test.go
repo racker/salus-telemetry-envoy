@@ -92,6 +92,8 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 
 			agentsRunner.ProcessInstall(install)
 
+			mockSpecificAgentRunner.VerifyWasCalledOnce().PostInstall()
+
 			mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
 
 			_, exeFilename := path.Split(tt.exe)

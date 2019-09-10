@@ -149,6 +149,15 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 			return
 		}
 
+		err = specificAgentRunners[agentType].PostInstall()
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"version": agentVersion,
+				"type":    agentType,
+			}).Error("failed to post-process agent installation")
+			return
+		}
+
 		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
 
 		log.WithFields(log.Fields{
