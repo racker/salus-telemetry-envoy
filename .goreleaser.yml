@@ -42,6 +42,7 @@ nfpms:
       - deb
       - rpm
     scripts:
+      preinstall: pkg/scripts/preinstall.sh
       postinstall: pkg/scripts/postinstall.sh
     files:
       pkg/files/rackspace-monitoring-envoy.service: /lib/systemd/system/rackspace-monitoring-envoy.service
