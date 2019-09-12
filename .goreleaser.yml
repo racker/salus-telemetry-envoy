@@ -44,11 +44,13 @@ nfpms:
     scripts:
       preinstall: pkg/scripts/preinstall.sh
       postinstall: pkg/scripts/postinstall.sh
+      preremove: pkg/scripts/preremove.sh
+      postremove: pkg/scripts/postremove.sh
     files:
       # Might need to stage these files and install them according to distro, such as
       # https://github.com/influxdata/telegraf/blob/bae12dde1e2df495e647459e2d882a1f0604331b/scripts/post-install.sh#L50
       pkg/files/telemetry-envoy.service: /usr/lib/telemetry-envoy/scripts/telemetry-envoy.service
-      pkg/files/telemetry-envoy.preset: /usr/lib/telemetry-envoy/scripts/99-telemetry-envoy.preset
+      pkg/files/telemetry-envoy.preset: /usr/lib/telemetry-envoy/scripts/telemetry-envoy.preset
       pkg/files/telemetry-envoy.yaml: /etc/salus/telemetry-envoy.yaml
     empty_folders:
     - /var/lib/telemetry-envoy
