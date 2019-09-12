@@ -29,10 +29,7 @@ else
 fi
 
 cp -f ${SCRIPT_DIR}/${SERVICE}.service ${SYSTEMD_PATH}/system/
-cp -f ${SCRIPT_DIR}/${SERVICE}.preset ${SYSTEMD_PATH}/system-preset/99-${SERVICE}.preset
 
-# load preset, which disables service by default
-systemctl preset ${SERVICE}
 # load/reload service unit
 systemctl daemon-reload
 

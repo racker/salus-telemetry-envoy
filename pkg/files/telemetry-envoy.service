@@ -2,6 +2,7 @@
 Description=Rackspace Monitoring Envoy Service
 After=network.target
 Wants=network-online.target
+ConditionPathExists=/etc/salus/telemetry-envoy.yaml
 
 [Service]
 User=telemetry-envoy

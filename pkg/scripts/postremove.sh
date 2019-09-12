@@ -14,6 +14,5 @@ else
 fi
 
 rm -f ${SYSTEMD_PATH}/system/${SERVICE}.service
-rm -f ${SYSTEMD_PATH}/system-preset/99-${SERVICE}.preset
 
 systemctl daemon-reload
