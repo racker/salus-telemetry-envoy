@@ -13,6 +13,12 @@ else
   exit 1
 fi
 
-rm -f ${SYSTEMD_PATH}/system/${SERVICE}.service
+# debs pass upgrade, remove, or purge
+# rpms pass number of versions installed, so 0 means none
+if [ "$1" == "remove" ] || [ "$1" == "purge" ] || [ "$1" == "0" ]; then
+  systemctl disable ${SERVICE}
 
-systemctl daemon-reload
+  rm -f ${SYSTEMD_PATH}/system/${SERVICE}.service
+
+  systemctl daemon-reload
+fi
