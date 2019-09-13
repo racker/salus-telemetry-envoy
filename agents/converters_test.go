@@ -35,13 +35,13 @@ func TestConvertJsonToToml(t *testing.T) {
 		extraLabels map[string]string
 		interval    int64
 	}{
+		{name: "ping", extraLabels: map[string]string{
+			"target_tenant": "t-1",
+		}},
 		{name: "cpu"},
 		{name: "disk"},
 		{name: "diskio"},
 		{name: "mem"},
-		{name: "ping", extraLabels: map[string]string{
-			"target_tenant": "t-1",
-		}},
 		{name: "cpu_with_interval", interval: 15},
 	}
 
