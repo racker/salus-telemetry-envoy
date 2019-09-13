@@ -36,7 +36,6 @@ const (
 func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string, interval int64) ([]byte, error) {
 
 	jsonDecoder := json.NewDecoder(strings.NewReader(configJson))
-	jsonDecoder.UseNumber()
 	var flatMap map[string]interface{}
 
 	err := jsonDecoder.Decode(&flatMap)
@@ -65,7 +64,7 @@ func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string,
 	inputPlugins := make(map[string][]map[string]interface{}, len(flatMap))
 	mapOfLists["inputs"] = inputPlugins
 
-	finalPluginConfig := normalizeKeysAndValues(flatMap)
+	finalPluginConfig := normalizeKeys(flatMap)
 	if extraLabels != nil && len(extraLabels) > 0 {
 		finalPluginConfig["tags"] = extraLabels
 	}
@@ -86,21 +85,11 @@ func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string,
 	return tomlBuffer.Bytes(), nil
 }
 
-// normalizeKeysAndValues converts the key names to lower_snake_case
-func normalizeKeysAndValues(config map[string]interface{}) map[string]interface{} {
+// normalizeKeys converts the key names to lower_snake_case
+func normalizeKeys(config map[string]interface{}) map[string]interface{} {
 	normalized := make(map[string]interface{}, len(config))
 
 	for k, v := range config {
-		if asNumber, ok := v.(json.Number); ok {
-			if asInt, err := asNumber.Int64(); err == nil {
-				v = asInt
-			} else if asFloat, err := asNumber.Float64(); err == nil {
-				v = asFloat
-			} else {
-				// fallback to string
-				v = asNumber.String()
-			}
-		}
 		normalized[strcase.ToSnake(k)] = v
 	}
 

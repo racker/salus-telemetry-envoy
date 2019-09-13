@@ -1,7 +1,6 @@
 [inputs]
 
   [[inputs.ping]]
-    count = 3
     urls = ["127.0.0.1"]
     [inputs.ping.tags]
       target_tenant = "t-1"
