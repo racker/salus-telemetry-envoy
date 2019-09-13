@@ -86,7 +86,8 @@ func ConvertJsonToTelegrafToml(configJson string, extraLabels map[string]string,
 	return tomlBuffer.Bytes(), nil
 }
 
-// normalizeKeysAndValues converts the key names to lower_snake_case
+// normalizeKeysAndValues converts the key names to lower_snake_case and adjusts numerical values
+// to be int or float specific.
 func normalizeKeysAndValues(config map[string]interface{}) map[string]interface{} {
 	normalized := make(map[string]interface{}, len(config))
 
