@@ -3,6 +3,7 @@
 USER=telemetry-envoy
 GROUP=telemetry-envoy
 SCRIPT_DIR=/usr/lib/telemetry-envoy/scripts
+DATA_DIR=/var/lib/telemetry-envoy
 ETC_DIR=/etc/salus
 SERVICE=telemetry-envoy
 
@@ -10,7 +11,7 @@ setcap CAP_SETFCAP+p /usr/local/bin/telemetry-envoy
 
 # Only adjust top level of data directory since just need to fix up initial, empty dir.
 # A recursive chown on a fully populated data directory could become time consuming.
-chown ${USER}:${GROUP} /var/lib/telemetry-envoy
+chown ${USER}:${GROUP} ${DATA_DIR}
 
 # telemetry-envoy owns config
 chown -R ${USER}:${GROUP} ${ETC_DIR}

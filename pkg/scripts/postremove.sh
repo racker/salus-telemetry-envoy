@@ -2,6 +2,7 @@
 
 SERVICE=telemetry-envoy
 ETC_DIR=/etc/salus
+DATA_DIR=/var/lib/telemetry-envoy
 
 if [ -d /lib/systemd ]; then
   # Debian/Ubuntu
@@ -26,4 +27,5 @@ fi
 
 if [ "$1" == "purge" ]; then
   rm -rf ${ETC_DIR}
+  rm -rf ${DATA_DIR}
 fi
