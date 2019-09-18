@@ -2,8 +2,10 @@
 Description=Rackspace Monitoring Envoy Service
 After=network.target
 Wants=network-online.target
+ConditionPathExists=/etc/salus/telemetry-envoy.yaml
 
 [Service]
+User=telemetry-envoy
 ExecStart=/usr/local/bin/telemetry-envoy run --config=/etc/salus/telemetry-envoy.yaml
 Restart=always
 RestartSec=5

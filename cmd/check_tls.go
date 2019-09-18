@@ -40,16 +40,17 @@ var checkTlsCmd = &cobra.Command{
 			RootCAs:      certPool,
 		}
 
-		conn, err := tls.Dial("tcp", viper.GetString(config.AmbassadorAddress), tlsConfig)
+		ambassadorAddress := viper.GetString(config.AmbassadorAddress)
+		conn, err := tls.Dial("tcp", ambassadorAddress, tlsConfig)
 		if err != nil {
 			logrus.WithError(err).
-				WithField("ambassador", config.AmbassadorAddress).
+				WithField("ambassador", ambassadorAddress).
 				Fatal("Failed to connect to ambassador")
 		}
 		_ = conn.Close()
 
 		logrus.
-			WithField("ambassador", config.AmbassadorAddress).
+			WithField("ambassador", ambassadorAddress).
 			Info("Successfully authenticated and connected to Ambassador")
 	},
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
+	"time"
 )
 
 const ConfigDetachedInstructions = "detached.instructions"
@@ -66,6 +67,9 @@ var detachedCmd = &cobra.Command{
 			for _, ingestor := range ingest.Ingestors() {
 				go ingestor.Start(ctx)
 			}
+
+			// give the goroutines above a few cycles to actually be ready
+			time.Sleep(100 * time.Millisecond)
 
 			// ...but feed instructions to the agents runner from a file
 			detachedRunner := ambassador.NewDetachedRunner(agentsRunner)

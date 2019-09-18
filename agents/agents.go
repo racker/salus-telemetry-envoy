@@ -53,6 +53,9 @@ type SpecificAgentRunner interface {
 	// It must ensure the agent process is running if configs and executable are available
 	// It must also ensure that that the process is stopped if no configuration remains
 	EnsureRunningState(ctx context.Context, applyConfigs bool)
+	// PostInstall is invoked after installation of a new agent version and allows the
+	// specific agent runner a chance to tweak capabilities assigned to the executable
+	PostInstall() error
 	PurgeConfig() error
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error)

@@ -328,6 +328,7 @@ func (*EnvoyInstruction) XXX_OneofWrappers() []interface{} {
 	}
 }
 
+// DetachedInstructions is used for offline, detached loading of instructions from a file.
 type DetachedInstructions struct {
 	Instructions         []*EnvoyInstruction `protobuf:"bytes,1,rep,name=instructions,proto3" json:"instructions,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
