@@ -131,6 +131,8 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 			return
 		}
 
+		specificAgentRunners[agentType].Stop()
+
 		// NOTE rather than symlink, might later use a metadata file
 		currentSymlinkPath := path.Join(agentBasePath, currentVerLink)
 		err = os.Remove(currentSymlinkPath)
@@ -158,6 +160,9 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 			return
 		}
 
+		// There's a chance a new agent version might get started here with "old" incompatible
+		// configs, but the Ambassador will follow up with a re-evaluation of bound monitors
+		// and will send newly translated config to eventually resolve this.
 		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
 
 		log.WithFields(log.Fields{
