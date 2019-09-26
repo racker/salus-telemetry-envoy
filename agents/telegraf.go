@@ -224,7 +224,7 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 		if applyConfigs {
 			log.
 				WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
-				Debug("signaling config reload")
+				Info("signaling config reload")
 			tr.handleConfigReload()
 		}
 		return
