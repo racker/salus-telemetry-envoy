@@ -218,8 +218,15 @@ func (tr *TelegrafRunner) EnsureRunningState(ctx context.Context, applyConfigs b
 	}
 
 	if tr.running.IsRunning() {
-		log.Debug("telegraf is already running, signaling config reload")
-		tr.handleConfigReload()
+		log.
+			WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
+			Debug("already running")
+		if applyConfigs {
+			log.
+				WithField("agentType", telemetry_edge.AgentType_TELEGRAF).
+				Debug("signaling config reload")
+			tr.handleConfigReload()
+		}
 		return
 	}
 
