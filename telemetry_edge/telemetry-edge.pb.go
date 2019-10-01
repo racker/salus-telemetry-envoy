@@ -8,6 +8,8 @@ import (
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -1358,6 +1360,26 @@ type TelemetryAmbassadorServer interface {
 	PostLogEvent(context.Context, *LogEvent) (*PostLogEventResponse, error)
 	PostMetric(context.Context, *PostedMetric) (*PostMetricResponse, error)
 	PostTestMonitorResults(context.Context, *TestMonitorResults) (*PostTestMonitorResultsResponse, error)
+}
+
+// UnimplementedTelemetryAmbassadorServer can be embedded to have forward compatible implementations.
+type UnimplementedTelemetryAmbassadorServer struct {
+}
+
+func (*UnimplementedTelemetryAmbassadorServer) AttachEnvoy(req *EnvoySummary, srv TelemetryAmbassador_AttachEnvoyServer) error {
+	return status.Errorf(codes.Unimplemented, "method AttachEnvoy not implemented")
+}
+func (*UnimplementedTelemetryAmbassadorServer) KeepAlive(ctx context.Context, req *KeepAliveRequest) (*KeepAliveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method KeepAlive not implemented")
+}
+func (*UnimplementedTelemetryAmbassadorServer) PostLogEvent(ctx context.Context, req *LogEvent) (*PostLogEventResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PostLogEvent not implemented")
+}
+func (*UnimplementedTelemetryAmbassadorServer) PostMetric(ctx context.Context, req *PostedMetric) (*PostMetricResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PostMetric not implemented")
+}
+func (*UnimplementedTelemetryAmbassadorServer) PostTestMonitorResults(ctx context.Context, req *TestMonitorResults) (*PostTestMonitorResultsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PostTestMonitorResults not implemented")
 }
 
 func RegisterTelemetryAmbassadorServer(s *grpc.Server, srv TelemetryAmbassadorServer) {
