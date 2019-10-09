@@ -54,7 +54,7 @@ nfpms:
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "SNAPSHOT-{{.ShortCommit}}"
+  name_template: "{{.Tag}}-SNAPSHOT-{{.ShortCommit}}"
 changelog:
   sort: asc
   filters:
