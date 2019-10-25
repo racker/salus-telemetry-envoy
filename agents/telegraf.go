@@ -130,7 +130,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 }
 
 func (tr *TelegrafRunner) serve(listener net.Listener) {
-	log.Info("started webServer")
+	log.Info("started webServer gbj4")
 	err := http.Serve(listener, tr.configServerMux)
 	// Note this is probably not the best way to handle webserver failure
 	log.Fatalf("web server error %v", err)
@@ -160,15 +160,13 @@ func (tr *TelegrafRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructi
 func (tr *TelegrafRunner) concatConfigs() []byte {
 	var configs []byte
 	configs = append(configs, tr.tomlMainConfig...)
+	
 	// telegraf can only handle one 'inputs' header per file so add exactly one here
-	configs = append(configs, []byte("[inputs]")...)
-	for _, v := range tr.tomlConfigs {
-		// remove the other redundant '[inputs]' headers here
-		if bytes.Equal([]byte("[inputs]"), v[0:8]) {
-			v = v[8:]
-		}
-		configs = append(configs, v...)
-	}
+	configs = append(configs, []byte(`[inputs]
+  [[inputs.ping]]
+    urls = ["example.org"]
+`)...)
+	fmt.Println("gbjx2\n" + string(configs))
 	return configs
 }
 
