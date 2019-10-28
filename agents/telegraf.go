@@ -130,7 +130,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 }
 
 func (tr *TelegrafRunner) serve(listener net.Listener) {
-	log.Info("started webServer gbj4")
+	log.Info("started webServer/preconfigured")
 	err := http.Serve(listener, tr.configServerMux)
 	// Note this is probably not the best way to handle webserver failure
 	log.Fatalf("web server error %v", err)
@@ -165,8 +165,10 @@ func (tr *TelegrafRunner) concatConfigs() []byte {
 	configs = append(configs, []byte(`[inputs]
   [[inputs.ping]]
     urls = ["example.org"]
+    [inputs.ping.tags]
+      test_tag = "gbjTag"
 `)...)
-	fmt.Println("gbjx2\n" + string(configs))
+	fmt.Println("preconfigured\n" + string(configs))
 	return configs
 }
 
