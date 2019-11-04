@@ -21,11 +21,7 @@ install: test
 	go install
 
 .PHONY: generate
-generate: generate-grpc generate-mocks
-
-.PHONY: generate-grpc
-generate-grpc:
-	go generate ./telemetry_edge
+generate: generate-mocks
 
 .PHONY: generate-mocks
 generate-mocks:
@@ -69,19 +65,11 @@ init: init-os-specific init-gotools
 
 ifeq (${OS},Darwin)
 init-os-specific:
-	-brew install protobuf goreleaser
+	-brew install goreleaser
 else
-ifeq (${OS},Linux)
 init-os-specific:
-ifeq (${IAmGroot},root)
-	apt-get update
-	apt-get install -y protobuf-compiler
-else
-	sudo apt install -y protobuf-compiler
-endif
-endif
+	curl -sfL https://install.goreleaser.com/github.com/goreleaser/goreleaser.sh | sh
 endif
 
 init-gotools:
-	go get -mod=readonly github.com/golang/protobuf/protoc-gen-go
 	go get -mod=readonly github.com/petergtz/pegomock/...

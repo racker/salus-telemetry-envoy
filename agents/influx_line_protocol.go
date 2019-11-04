@@ -20,7 +20,7 @@ import (
 	"github.com/alecthomas/participle"
 	"github.com/alecthomas/participle/lexer"
 	"github.com/alecthomas/participle/lexer/ebnf"
-	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"strconv"
 	"strings"
 )

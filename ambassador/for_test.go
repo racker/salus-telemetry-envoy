@@ -16,6 +16,6 @@
 
 //go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents Router
 //go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador IdGenerator
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/telemetry_edge TelemetryAmbassadorServer
+//go:generate pegomock generate -m github.com/racker/salus-telemetry-protocol/telemetry_edge TelemetryAmbassadorServer
 
 package ambassador_test
