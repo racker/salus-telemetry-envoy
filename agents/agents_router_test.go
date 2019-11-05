@@ -19,10 +19,10 @@ package agents_test
 import (
 	"context"
 	"github.com/petergtz/pegomock"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/telemetry-envoy/agents"
 	"github.com/racker/telemetry-envoy/agents/matchers"
 	"github.com/racker/telemetry-envoy/config"
-	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

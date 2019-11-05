@@ -160,14 +160,16 @@ An example invocation of this sub-command is:
 
 With this sub-command, logs are output to stderr so that file descriptor redirects can be used to separate the envoy logging from the posted telemetry content.
 
-### gRPC code generating
+### Locally testing gRPC/proto changes
 
-When first setting up the project and after the `telemetry_edge/telemetry-edge.proto` file
-is changed, you will need to re-generate the Go source from it using
+If making local changes to the gRPC/proto files in `salus-telemetry-protocol`, you'll need to make a temporary change to `go.mod` to reference those. Add the following after the `require` block:
 
 ```
-make generate
+replace github.com/racker/salus-telemetry-protocol => ../../libs/protocol
 ```
+
+**NOTE** be sure to re-generate the `*.pb.go` files in `../../libs/protocol` after making `*.proto` changes.
+
 
 ### Executable build
 

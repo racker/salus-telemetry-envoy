@@ -17,8 +17,8 @@
 package agents
 
 import (
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/telemetry-envoy/config"
-	"github.com/racker/telemetry-envoy/telemetry_edge"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"

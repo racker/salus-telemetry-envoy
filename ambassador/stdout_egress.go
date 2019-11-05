@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/racker/telemetry-envoy/telemetry_edge"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 )
 
