@@ -21,10 +21,19 @@ import (
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/telemetry-envoy/ambassador"
 	"time"
+	"github.com/racker/telemetry-envoy/config"
+	"github.com/spf13/viper"
+	"net/http"
+	"net"
+	log "github.com/sirupsen/logrus"
+	"strconv"
 )
 
 type PerfTestIngestor struct {
 	egressConn ambassador.EgressConnection
+	metricCount int64
+	serverHandler http.HandlerFunc
+	ticker *time.Ticker
 }
 
 func init() {
@@ -32,22 +41,63 @@ func init() {
 }
 
 func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
+	if !viper.GetBool(config.PerfTestMode) {
+		return nil
+	}
 	p.egressConn = conn
+	p.metricCount = 5;
+	p.serverHandler = p.handler
 	return nil
 }
 
 func (p *PerfTestIngestor) Start(ctx context.Context) {
-	ticker := time.NewTicker(15 * time.Second)
+	if !viper.GetBool(config.PerfTestMode) {
+		return
+	}
+	p.ticker = time.NewTicker(time.Duration(p.metricCount * int64(time.Second)))
+	go p.startPerfTestServer()
 	for {
 		select {
 		case <-ctx.Done():
-			ticker.Stop()
+			p.ticker.Stop()
 			return
 
-		case <-ticker.C:
+		case <-p.ticker.C:
 			p.processMetric()
 		}
 	}
+}
+
+func (p *PerfTestIngestor) startPerfTestServer() {
+	serverMux := http.NewServeMux()
+	serverMux.Handle("/", p.serverHandler)
+
+	listener, err := net.Listen("tcp", ":8100")
+	if err != nil {
+		log.Fatalf("couldn't create perf test server")
+	}
+	log.Info("started perfTest webServer")
+	err = http.Serve(listener, serverMux)
+	// Note this is probably not the best way to handle webserver failure
+	log.Fatalf("perf test server error %v", err)
+}
+func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	metricCountVals, ok := params["metricCount"]
+	if !ok || len(metricCountVals) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("metricCount parameter required"))
+		return
+	}
+	count, err := strconv.Atoi(metricCountVals[0])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("metricCount parameter must be an int"))
+		return
+	}
+	p.metricCount = int64(count)
+	p.ticker = time.NewTicker(time.Duration(p.metricCount * int64(time.Second)))
+        return
 }
 
 func (p *PerfTestIngestor) processMetric() {
