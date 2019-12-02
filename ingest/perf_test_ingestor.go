@@ -32,7 +32,8 @@ import (
 
 type PerfTestIngestor struct {
 	egressConn ambassador.EgressConnection
-	metricCount int64
+	currentMetricCount int64
+	previousMetricCount int64
 	serverHandler http.HandlerFunc
 	ticker *time.Ticker
 }
@@ -45,8 +46,10 @@ func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
 	if !viper.GetBool(config.PerfTestMode) {
 		return nil
 	}
+	log.Info("entering perfTest mode")
 	p.egressConn = conn
-	p.metricCount = 5;
+	p.previousMetricCount = 0;
+	p.currentMetricCount = 5;
 	p.serverHandler = p.handler
 	return nil
 }
@@ -55,9 +58,16 @@ func (p *PerfTestIngestor) Start(ctx context.Context) {
 	if !viper.GetBool(config.PerfTestMode) {
 		return
 	}
-	p.ticker = time.NewTicker(time.Duration(p.metricCount * int64(time.Second)))
+	
 	go p.startPerfTestServer()
 	for {
+		if (p.previousMetricCount != p.currentMetricCount) {
+			if (p.ticker != nil) {
+				p.ticker.Stop()
+			}
+			p.previousMetricCount = p.currentMetricCount
+			p.ticker = time.NewTicker(time.Duration(p.currentMetricCount * int64(time.Second)))
+		}
 		select {
 		case <-ctx.Done():
 			p.ticker.Stop()
@@ -96,8 +106,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("metricCount parameter must be an int"))
 		return
 	}
-	p.metricCount = int64(count)
-	p.ticker = time.NewTicker(time.Duration(p.metricCount * int64(time.Second)))
+	p.currentMetricCount = int64(count)
 	_, _ = w.Write([]byte(fmt.Sprintf("metricCount set to %d", count)))
         return
 }
