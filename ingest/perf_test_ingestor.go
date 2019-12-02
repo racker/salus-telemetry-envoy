@@ -27,6 +27,7 @@ import (
 	"net"
 	log "github.com/sirupsen/logrus"
 	"strconv"
+	"fmt"
 )
 
 type PerfTestIngestor struct {
@@ -97,6 +98,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	p.metricCount = int64(count)
 	p.ticker = time.NewTicker(time.Duration(p.metricCount * int64(time.Second)))
+	_, _ = w.Write([]byte(fmt.Sprintf("metricCount set to %d", count)))
         return
 }
 
