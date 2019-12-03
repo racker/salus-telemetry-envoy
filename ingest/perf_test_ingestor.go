@@ -128,7 +128,8 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("metricsPerMinute or floatsPerMetric parameter required"))
 		return
 	}
-	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d", p.currentMetricsPerMinute, p.currentFloatsPerMetric)))
+	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d",
+		p.currentMetricsPerMinute, p.currentFloatsPerMetric)))
 	return
 }
 
