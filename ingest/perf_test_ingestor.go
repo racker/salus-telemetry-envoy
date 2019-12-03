@@ -49,7 +49,7 @@ func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
 	log.Info("entering perfTest mode")
 	p.egressConn = conn
 	p.previousMetricsPerMinute = 0;
-	p.currentMetricsPerMinute = 12;
+	p.currentMetricsPerMinute = 60;
 	p.serverHandler = p.handler
 	return nil
 }
@@ -107,7 +107,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.currentMetricsPerMinute = int64(count)
-	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d", count)))
+	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d", p.currentMetricsPerMinute)))
         return
 }
 
