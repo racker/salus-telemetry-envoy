@@ -8,7 +8,7 @@ steps:
       - |
         set -ex
         make init
-        make test-report-junit
+        make test
         cat test-results/report.xml
 
   - id: UPLOAD_RESULTS

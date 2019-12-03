@@ -54,7 +54,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.telemetry-envoy.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
 
-	rootCmd.PersistentFlags().Int("perf-test-port", 0, "Enable perf test mode port")
+	rootCmd.PersistentFlags().Int("perf-test-port", 0, "Enable perf test mode/port")
 	viper.BindPFlag(config.PerfTestPort, rootCmd.PersistentFlags().Lookup("perf-test-port"))
 	rootCmd.PersistentFlags().String("resource-id", "", "Identifier of the resource where this Envoy is running")
 	viper.BindPFlag(config.ResourceId, rootCmd.PersistentFlags().Lookup("resource-id"))
