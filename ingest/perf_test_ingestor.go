@@ -32,8 +32,8 @@ import (
 
 type PerfTestIngestor struct {
 	egressConn ambassador.EgressConnection
-	currentMetricCount int64
-	previousMetricCount int64
+	currentMetricsPerMinute int64 
+	previousMetricsPerMinute int64
 	serverHandler http.HandlerFunc
 	ticker *time.Ticker
 }
@@ -43,30 +43,30 @@ func init() {
 }
 
 func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
-	if !viper.GetBool(config.PerfTestMode) {
+	if viper.GetInt(config.PerfTestPort) == 0 {
 		return nil
 	}
 	log.Info("entering perfTest mode")
 	p.egressConn = conn
-	p.previousMetricCount = 0;
-	p.currentMetricCount = 5;
+	p.previousMetricsPerMinute = 0;
+	p.currentMetricsPerMinute = 12;
 	p.serverHandler = p.handler
 	return nil
 }
 
 func (p *PerfTestIngestor) Start(ctx context.Context) {
-	if !viper.GetBool(config.PerfTestMode) {
+	if viper.GetInt(config.PerfTestPort) == 0 {
 		return
 	}
 	
 	go p.startPerfTestServer()
 	for {
-		if (p.previousMetricCount != p.currentMetricCount) {
+		if (p.previousMetricsPerMinute != p.currentMetricsPerMinute) {
 			if (p.ticker != nil) {
 				p.ticker.Stop()
 			}
-			p.previousMetricCount = p.currentMetricCount
-			p.ticker = time.NewTicker(time.Duration(p.currentMetricCount * int64(time.Second)))
+			p.previousMetricsPerMinute = p.currentMetricsPerMinute
+			p.ticker = time.NewTicker(time.Duration(int64(time.Minute)/p.currentMetricsPerMinute))
 		}
 		select {
 		case <-ctx.Done():
@@ -83,7 +83,7 @@ func (p *PerfTestIngestor) startPerfTestServer() {
 	serverMux := http.NewServeMux()
 	serverMux.Handle("/", p.serverHandler)
 
-	listener, err := net.Listen("tcp", ":8100")
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", viper.GetInt(config.PerfTestPort)))
 	if err != nil {
 		log.Fatalf("couldn't create perf test server")
 	}
@@ -94,20 +94,20 @@ func (p *PerfTestIngestor) startPerfTestServer() {
 }
 func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
-	metricCountVals, ok := params["metricCount"]
-	if !ok || len(metricCountVals) == 0 {
+	metricsPerMinuteVals, ok := params["metricsPerMinute"]
+	if !ok || len(metricsPerMinuteVals) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("metricCount parameter required"))
+		_, _ = w.Write([]byte("metricsPerMinute parameter required"))
 		return
 	}
-	count, err := strconv.Atoi(metricCountVals[0])
+	count, err := strconv.Atoi(metricsPerMinuteVals[0])
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte("metricCount parameter must be an int"))
+		_, _ = w.Write([]byte("metricsPerMinute parameter must be an int"))
 		return
 	}
-	p.currentMetricCount = int64(count)
-	_, _ = w.Write([]byte(fmt.Sprintf("metricCount set to %d", count)))
+	p.currentMetricsPerMinute = int64(count)
+	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d", count)))
         return
 }
 
