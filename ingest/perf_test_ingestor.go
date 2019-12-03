@@ -18,24 +18,24 @@ package ingest
 
 import (
 	"context"
+	"fmt"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/telemetry-envoy/ambassador"
-	"time"
 	"github.com/racker/telemetry-envoy/config"
-	"github.com/spf13/viper"
-	"net/http"
-	"net"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+	"net"
+	"net/http"
 	"strconv"
-	"fmt"
+	"time"
 )
 
 type PerfTestIngestor struct {
-	egressConn ambassador.EgressConnection
-	currentMetricsPerMinute int64 
+	egressConn               ambassador.EgressConnection
+	currentMetricsPerMinute  int64
 	previousMetricsPerMinute int64
-	serverHandler http.HandlerFunc
-	ticker *time.Ticker
+	serverHandler            http.HandlerFunc
+	ticker                   *time.Ticker
 }
 
 func init() {
@@ -48,8 +48,8 @@ func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
 	}
 	log.Info("entering perfTest mode")
 	p.egressConn = conn
-	p.previousMetricsPerMinute = 0;
-	p.currentMetricsPerMinute = 60;
+	p.previousMetricsPerMinute = 0
+	p.currentMetricsPerMinute = 60
 	p.serverHandler = p.handler
 	return nil
 }
@@ -58,15 +58,15 @@ func (p *PerfTestIngestor) Start(ctx context.Context) {
 	if viper.GetInt(config.PerfTestPort) == 0 {
 		return
 	}
-	
+
 	go p.startPerfTestServer()
 	for {
-		if (p.previousMetricsPerMinute != p.currentMetricsPerMinute) {
-			if (p.ticker != nil) {
+		if p.previousMetricsPerMinute != p.currentMetricsPerMinute {
+			if p.ticker != nil {
 				p.ticker.Stop()
 			}
 			p.previousMetricsPerMinute = p.currentMetricsPerMinute
-			p.ticker = time.NewTicker(time.Duration(int64(time.Minute)/p.currentMetricsPerMinute))
+			p.ticker = time.NewTicker(time.Duration(int64(time.Minute) / p.currentMetricsPerMinute))
 		}
 		select {
 		case <-ctx.Done():
@@ -92,6 +92,7 @@ func (p *PerfTestIngestor) startPerfTestServer() {
 	// Note this is probably not the best way to handle webserver failure
 	log.Fatalf("perf test server error %v", err)
 }
+
 func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	metricsPerMinuteVals, ok := params["metricsPerMinute"]
@@ -108,7 +109,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	p.currentMetricsPerMinute = int64(count)
 	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d", p.currentMetricsPerMinute)))
-        return
+	return
 }
 
 func (p *PerfTestIngestor) processMetric() {

@@ -18,6 +18,7 @@ package ingest_test
 
 import (
 	"context"
+	"fmt"
 	"github.com/petergtz/pegomock"
 	"github.com/phayes/freeport"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
@@ -27,11 +28,10 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
+	"net/http"
 	"testing"
 	"time"
-	"net/http"
-	"fmt"
-	"io/ioutil"
 )
 
 func TestPerfTestIngestor(t *testing.T) {
@@ -66,8 +66,7 @@ func TestPerfTestIngestor(t *testing.T) {
 	assert.Equal(t, "success",
 		args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Svalues["result_type"])
 
-
-        metricsPerMinute := 10
+	metricsPerMinute := 10
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/?metricsPerMinute=%d", port, metricsPerMinute))
 	require.NoError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
