@@ -34,8 +34,7 @@ type PerfTestIngestor struct {
 	egressConn               ambassador.EgressConnection
 	currentMetricsPerMinute  int64
 	previousMetricsPerMinute int64
-	currentFloatsPerMetric   int64
-	previousFloatsPerMetric  int64
+	floatsPerMetric          int64
 	serverHandler            http.HandlerFunc
 	ticker                   *time.Ticker
 }
@@ -52,8 +51,7 @@ func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
 	p.egressConn = conn
 	p.previousMetricsPerMinute = 0
 	p.currentMetricsPerMinute = 60
-	p.previousFloatsPerMetric = 0
-	p.currentFloatsPerMetric = 10
+	p.floatsPerMetric = 10
 	p.serverHandler = p.handler
 	return nil
 }
@@ -121,7 +119,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("floatsPerMetric parameter must be an int: " + err.Error()))
 			return
 		}
-		p.currentFloatsPerMetric = int64(floatsCount)
+		p.floatsPerMetric = int64(floatsCount)
 		floatsPerMetricSet = true
 	}
 	if metricsPerMinuteSet == false && floatsPerMetricSet == false {
@@ -129,7 +127,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d",
-		p.currentMetricsPerMinute, p.currentFloatsPerMetric)))
+		p.currentMetricsPerMinute, p.floatsPerMetric)))
 	return
 }
 
@@ -139,7 +137,7 @@ func (p *PerfTestIngestor) processMetric() {
 	tags := make(map[string]string)
 	tags["test_tag"] = "perfTestTag"
 	svalues["result_type"] = "success"
-	for i := 0; int64(i) < p.currentFloatsPerMetric; i++ {
+	for i := 0; int64(i) < p.floatsPerMetric; i++ {
 		fvalues[fmt.Sprintf("result_code%d", i)] = -2.0
 	}
 	outMetric := &telemetry_edge.Metric{
