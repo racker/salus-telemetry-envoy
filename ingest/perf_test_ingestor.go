@@ -35,7 +35,6 @@ type PerfTestIngestor struct {
 	currentMetricsPerMinute  int64
 	previousMetricsPerMinute int64
 	floatsPerMetric          int64
-	serverHandler            http.HandlerFunc
 	ticker                   *time.Ticker
 }
 
@@ -52,7 +51,6 @@ func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
 	p.previousMetricsPerMinute = 0
 	p.currentMetricsPerMinute = 60
 	p.floatsPerMetric = 10
-	p.serverHandler = p.handler
 	return nil
 }
 
@@ -83,7 +81,7 @@ func (p *PerfTestIngestor) Start(ctx context.Context) {
 
 func (p *PerfTestIngestor) startPerfTestServer() {
 	serverMux := http.NewServeMux()
-	serverMux.Handle("/", p.serverHandler)
+	serverMux.Handle("/", http.HandlerFunc(p.handler))
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", viper.GetInt(config.PerfTestPort)))
 	if err != nil {
@@ -95,13 +93,17 @@ func (p *PerfTestIngestor) startPerfTestServer() {
 }
 
 func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("Only POST's accepted"))
+		return
+	}
 	params := r.URL.Query()
 	metricsPerMinuteSet := false
 	floatsPerMetricSet := false
 
-	metricsPerMinuteVals, ok := params["metricsPerMinute"]
-	if ok && len(metricsPerMinuteVals) != 0 {
-		metricsCount, err := strconv.Atoi(metricsPerMinuteVals[0])
+	if params.Get("metricsPerMinute") != "" {
+		metricsCount, err := strconv.Atoi(params.Get("metricsPerMinute"))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte("metricsPerMinute parameter must be an int: " + err.Error()))
@@ -111,9 +113,8 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		metricsPerMinuteSet = true
 	}
 
-	floatsPerMetricVals, ok := params["floatsPerMetric"]
-	if ok && len(floatsPerMetricVals) != 0 {
-		floatsCount, err := strconv.Atoi(floatsPerMetricVals[0])
+	if params.Get("floatsPerMetric") != "" {
+		floatsCount, err := strconv.Atoi(params.Get("floatsPerMetric"))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte("floatsPerMetric parameter must be an int: " + err.Error()))
@@ -123,6 +124,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		floatsPerMetricSet = true
 	}
 	if metricsPerMinuteSet == false && floatsPerMetricSet == false {
+		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte("metricsPerMinute or floatsPerMetric parameter required"))
 		return
 	}
@@ -138,7 +140,7 @@ func (p *PerfTestIngestor) processMetric() {
 	tags["test_tag"] = "perfTestTag"
 	svalues["result_type"] = "success"
 	for i := 0; int64(i) < p.floatsPerMetric; i++ {
-		fvalues[fmt.Sprintf("result_code%d", i)] = -2.0
+		fvalues[fmt.Sprintf("result_code%d", i)] = float64(i)
 	}
 	outMetric := &telemetry_edge.Metric{
 		Variant: &telemetry_edge.Metric_NameTagValue{

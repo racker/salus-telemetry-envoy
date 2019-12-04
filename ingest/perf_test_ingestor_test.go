@@ -61,7 +61,7 @@ func TestPerfTestIngestor(t *testing.T) {
 		args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Name)
 	assert.Equal(t, "perfTestTag",
 		args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Tags["test_tag"])
-	assert.Equal(t, float64(-2.0),
+	assert.Equal(t, float64(0),
 		args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Fvalues["result_code0"])
 	assert.Equal(t, 10,
 		len(args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Fvalues))
@@ -70,7 +70,7 @@ func TestPerfTestIngestor(t *testing.T) {
 
 	metricsPerMinute := 10
 	floatsPerMetric := 20
-	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/?metricsPerMinute=%d&floatsPerMetric=%d", port, metricsPerMinute, floatsPerMetric))
+	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/?metricsPerMinute=%d&floatsPerMetric=%d", port, metricsPerMinute, floatsPerMetric), "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	body, err := ioutil.ReadAll(resp.Body)
