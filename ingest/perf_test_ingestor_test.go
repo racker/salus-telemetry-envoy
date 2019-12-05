@@ -30,10 +30,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
-	"testing"
-	"time"
 	"net/url"
 	"strconv"
+	"testing"
+	"time"
 )
 
 func TestPerfTestIngestor(t *testing.T) {
