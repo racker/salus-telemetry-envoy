@@ -9,7 +9,6 @@ steps:
         set -ex
         make init
         make test
-        cat test-results/report.xml
 
   - id: UPLOAD_RESULTS
     name: 'gcr.io/cloud-builders/gsutil'
