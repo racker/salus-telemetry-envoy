@@ -59,9 +59,9 @@ func (p *PerfTestIngestor) Start(ctx context.Context) {
 		return
 	}
 
+	p.ticker = time.NewTicker(time.Duration(int64(time.Minute) / int64(p.metricsPerMinute)))
 	go p.startPerfTestServer()
 	for {
-		p.ticker = time.NewTicker(time.Duration(int64(time.Minute) / int64(p.metricsPerMinute)))
 		select {
 		case <-ctx.Done():
 			p.ticker.Stop()
