@@ -32,10 +32,10 @@ import (
 
 type PerfTestIngestor struct {
 	egressConn               ambassador.EgressConnection
-	currentMetricsPerMinute  int64
-	previousMetricsPerMinute int64
+	metricsPerMinute         int64
 	floatsPerMetric          int64
 	ticker                   *time.Ticker
+	newRateC                 chan int64
 }
 
 func init() {
@@ -46,11 +46,11 @@ func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
 	if viper.GetInt(config.PerfTestPort) == 0 {
 		return nil
 	}
-	log.Info("entering perfTest mode")
+	log.Info("gbj3 entering perfTest mode")
 	p.egressConn = conn
-	p.previousMetricsPerMinute = 0
-	p.currentMetricsPerMinute = 60
+	p.metricsPerMinute = 60
 	p.floatsPerMetric = 10
+	p.newRateC = make(chan int64)
 	return nil
 }
 
@@ -61,18 +61,14 @@ func (p *PerfTestIngestor) Start(ctx context.Context) {
 
 	go p.startPerfTestServer()
 	for {
-		if p.previousMetricsPerMinute != p.currentMetricsPerMinute {
-			if p.ticker != nil {
-				p.ticker.Stop()
-			}
-			p.previousMetricsPerMinute = p.currentMetricsPerMinute
-			p.ticker = time.NewTicker(time.Duration(int64(time.Minute) / p.currentMetricsPerMinute))
-		}
+		p.ticker = time.NewTicker(time.Duration(int64(time.Minute) / p.metricsPerMinute))
 		select {
 		case <-ctx.Done():
 			p.ticker.Stop()
 			return
-
+		case <-p.newRateC:
+			p.ticker.Stop()
+			p.ticker = time.NewTicker(time.Duration(int64(time.Minute) / p.metricsPerMinute))
 		case <-p.ticker.C:
 			p.processMetric()
 		}
@@ -109,7 +105,8 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("metricsPerMinute parameter must be an int: " + err.Error()))
 			return
 		}
-		p.currentMetricsPerMinute = int64(metricsCount)
+		p.metricsPerMinute = int64(metricsCount)
+		p.newRateC <- p.metricsPerMinute
 		metricsPerMinuteSet = true
 	}
 
@@ -129,7 +126,7 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d",
-		p.currentMetricsPerMinute, p.floatsPerMetric)))
+		p.metricsPerMinute, p.floatsPerMetric)))
 	return
 }
 
