@@ -168,7 +168,7 @@ starts the envoy in perf test mode at port 8100
 
 The rate of metrics generated can be changed with a rest call like so:
 ```bash
-curl -X POST  "http://localhost:8100/?metricsPerMinute=15&floatsPerMetric=20"
+curl http://localhost:8100/ -d metricsPerMinute=15 -d floatsPerMetric=20
 ```
 ### Locally testing gRPC/proto changes
 

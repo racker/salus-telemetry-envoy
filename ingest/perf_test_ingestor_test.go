@@ -32,6 +32,8 @@ import (
 	"net/http"
 	"testing"
 	"time"
+	"net/url"
+	"strconv"
 )
 
 func TestPerfTestIngestor(t *testing.T) {
@@ -62,7 +64,7 @@ func TestPerfTestIngestor(t *testing.T) {
 	assert.Equal(t, "perfTestTag",
 		args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Tags["test_tag"])
 	assert.Equal(t, float64(0),
-		args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Fvalues["result_code0"])
+		args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Fvalues["duration_0"])
 	assert.Equal(t, 10,
 		len(args[0].Variant.(*telemetry_edge.Metric_NameTagValue).NameTagValue.Fvalues))
 	assert.Equal(t, "success",
@@ -70,7 +72,9 @@ func TestPerfTestIngestor(t *testing.T) {
 
 	metricsPerMinute := 10
 	floatsPerMetric := 20
-	resp, err := http.Post(fmt.Sprintf("http://localhost:%d/?metricsPerMinute=%d&floatsPerMetric=%d", port, metricsPerMinute, floatsPerMetric), "", nil)
+	resp, err := http.PostForm(fmt.Sprintf("http://localhost:%d", port),
+		url.Values{"metricsPerMinute": {strconv.Itoa(metricsPerMinute)},
+			"floatsPerMetric": {strconv.Itoa(floatsPerMetric)}})
 	require.NoError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	body, err := ioutil.ReadAll(resp.Body)

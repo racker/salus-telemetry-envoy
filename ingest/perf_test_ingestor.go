@@ -77,7 +77,7 @@ func (p *PerfTestIngestor) Start(ctx context.Context) {
 
 func (p *PerfTestIngestor) startPerfTestServer() {
 	serverMux := http.NewServeMux()
-	serverMux.Handle("/", http.HandlerFunc(p.handler))
+	serverMux.HandleFunc("/", p.handler)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", viper.GetInt(config.PerfTestPort)))
 	if err != nil {
@@ -90,18 +90,17 @@ func (p *PerfTestIngestor) startPerfTestServer() {
 
 func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		_, _ = w.Write([]byte("Only POST's accepted"))
 		return
 	}
-	params := r.URL.Query()
 	metricsPerMinuteSet := false
 	floatsPerMetricSet := false
 	metricsCount := p.metricsPerMinute
 	var err error
 
-	if params.Get("metricsPerMinute") != "" {
-		metricsCount, err = strconv.Atoi(params.Get("metricsPerMinute"))
+	if r.PostFormValue("metricsPerMinute") != "" {
+		metricsCount, err = strconv.Atoi(r.PostFormValue("metricsPerMinute"))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte("metricsPerMinute parameter must be an int: " + err.Error()))
@@ -111,8 +110,8 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		metricsPerMinuteSet = true
 	}
 
-	if params.Get("floatsPerMetric") != "" {
-		floatsCount, err := strconv.Atoi(params.Get("floatsPerMetric"))
+	if r.PostFormValue("floatsPerMetric") != "" {
+		floatsCount, err := strconv.Atoi(r.PostFormValue("floatsPerMetric"))
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte("floatsPerMetric parameter must be an int: " + err.Error()))
@@ -138,7 +137,7 @@ func (p *PerfTestIngestor) processMetric() {
 	tags["test_tag"] = "perfTestTag"
 	svalues["result_type"] = "success"
 	for i := 0; i < p.floatsPerMetric; i++ {
-		fvalues[fmt.Sprintf("result_code%d", i)] = float64(i)
+		fvalues[fmt.Sprintf("duration_%d", i)] = float64(i)
 	}
 	outMetric := &telemetry_edge.Metric{
 		Variant: &telemetry_edge.Metric_NameTagValue{
