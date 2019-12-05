@@ -31,11 +31,11 @@ import (
 )
 
 type PerfTestIngestor struct {
-	egressConn               ambassador.EgressConnection
-	metricsPerMinute         int64
-	floatsPerMetric          int64
-	ticker                   *time.Ticker
-	newRateC                 chan int64
+	egressConn       ambassador.EgressConnection
+	metricsPerMinute int64
+	floatsPerMetric  int64
+	ticker           *time.Ticker
+	newRateC         chan int64
 }
 
 func init() {
@@ -46,7 +46,7 @@ func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
 	if viper.GetInt(config.PerfTestPort) == 0 {
 		return nil
 	}
-	log.Info("gbj3 entering perfTest mode")
+	log.Info("entering perfTest mode")
 	p.egressConn = conn
 	p.metricsPerMinute = 60
 	p.floatsPerMetric = 10
