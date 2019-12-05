@@ -31,6 +31,7 @@ const (
 	AmbassadorAddress               = "ambassador.address"
 	ResourceId                      = "resource_id"
 	Zone                            = "zone"
+	PerfTestPort                    = "perf_test_port"
 
 	DefaultAgentsDataPath                  = "/var/lib/telemetry-envoy"
 	DefaultAgentsTestMonitorTimeout        = 30 * time.Second

@@ -8,10 +8,4 @@ steps:
       - |
         set -ex
         make init
-        make test-report-junit
-        cat test-results/report.xml
-
-  - id: UPLOAD_RESULTS
-    name: 'gcr.io/cloud-builders/gsutil'
-    args: ['cp', 'test-results/report.xml', "gs://salus-cache/salus-telemetry-envoy-test-results/report-${BUILD_ID}.xml"]
-
+        make test
