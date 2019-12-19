@@ -67,3 +67,9 @@ release:
   github:
     owner: racker
     name: salus-telemetry-envoy
+
+dockers:
+  -
+    image_templates:
+      - terry/salus-tel-envoy
+
