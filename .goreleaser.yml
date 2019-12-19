@@ -71,5 +71,6 @@ release:
 dockers:
   -
     image_templates:
-      - terry/salus-tel-envoy
+      - "{{ .Env.IMAGE_PREFIX }}salus-telemetry-envoy:{{.Tag}}"
+      - "{{ .Env.IMAGE_PREFIX }}salus-telemetry-envoy:latest"
 
