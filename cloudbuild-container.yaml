@@ -1,0 +1,16 @@
+steps:
+
+  # Create github release.
+  - name: goreleaser/goreleaser
+    entrypoint: /bin/sh
+    env:
+      - 'IMAGE_PREFIX=gcr.io/$PROJECT_ID/'
+    dir: /workspace
+    args: ['-c', 'git tag $TAG_NAME && goreleaser' ]
+    secretEnv: ['GITHUB_TOKEN']
+
+secrets:
+  - kmsKeyName: projects/salus-220516/locations/global/keyRings/salus-tel-envoy-deploy/cryptoKeys/github-token
+    secretEnv:
+      GITHUB_TOKEN: |
+        CiQAZWZUEEYcbBRafcPBs3cU/eORj99TOQskjt/pLKMFMhqBKBcSUQCi5geKB7MMUIjr7CobSetJ2CbCI+N/inYzJTKNU/kLJCi0xMov2z+06FGbkFs7TwByeWAYW3aCgvUwiii+VpXLsFgr5jK0MIHOlrn/9x6eBw==
