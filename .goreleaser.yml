@@ -70,8 +70,6 @@ release:
 
 dockers:
   -
-    extra_files:
-      - /etc/ssl/certs/ca-certificates.crt
     image_templates:
       - "{{ .Env.IMAGE_PREFIX }}salus-telemetry-envoy:{{.Tag}}"
       - "{{ .Env.IMAGE_PREFIX }}salus-telemetry-envoy:latest"
