@@ -20,7 +20,7 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"

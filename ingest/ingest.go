@@ -20,7 +20,7 @@ package ingest
 
 import (
 	"context"
-	"github.com/racker/telemetry-envoy/ambassador"
+	"github.com/racker/salus-telemetry-envoy/ambassador"
 )
 
 type Ingestor interface {

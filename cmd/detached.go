@@ -18,9 +18,9 @@ package cmd
 
 import (
 	"context"
-	"github.com/racker/telemetry-envoy/agents"
-	"github.com/racker/telemetry-envoy/ambassador"
-	"github.com/racker/telemetry-envoy/ingest"
+	"github.com/racker/salus-telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-envoy/ambassador"
+	"github.com/racker/salus-telemetry-envoy/ingest"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

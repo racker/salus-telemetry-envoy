@@ -16,6 +16,6 @@
  *
  */
 
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador EgressConnection
+//go:generate pegomock generate -m github.com/racker/salus-telemetry-envoy/ambassador EgressConnection
 
 package ingest_test

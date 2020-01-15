@@ -1,4 +1,4 @@
-module github.com/racker/telemetry-envoy
+module github.com/racker/salus-telemetry-envoy
 
 require (
 	github.com/BurntSushi/toml v0.3.1

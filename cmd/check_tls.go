@@ -18,8 +18,8 @@ package cmd
 
 import (
 	"crypto/tls"
-	"github.com/racker/telemetry-envoy/auth"
-	"github.com/racker/telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/auth"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

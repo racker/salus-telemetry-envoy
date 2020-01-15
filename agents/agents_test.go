@@ -20,7 +20,7 @@ package agents_test
 
 import (
 	"github.com/pkg/errors"
-	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-envoy/agents"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

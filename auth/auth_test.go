@@ -24,7 +24,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"github.com/racker/telemetry-envoy/auth"
+	"github.com/racker/salus-telemetry-envoy/auth"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
