@@ -1,0 +1,6 @@
+[inputs]
+
+  [[inputs.apache]]
+    password = "pass"
+    url = "rackspace.com"
+    username = "user"

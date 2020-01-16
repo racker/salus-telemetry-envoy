@@ -35,6 +35,7 @@ func TestConvertJsonToToml(t *testing.T) {
 		extraLabels map[string]string
 		interval    int64
 	}{
+		{name: "apache"},
 		{name: "cpu"},
 		{name: "disk"},
 		{name: "diskio"},
