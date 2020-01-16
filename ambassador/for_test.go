@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents Router
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/ambassador IdGenerator
+//go:generate pegomock generate -m github.com/racker/salus-telemetry-envoy/agents Router
+//go:generate pegomock generate -m github.com/racker/salus-telemetry-envoy/ambassador IdGenerator
 //go:generate pegomock generate -m github.com/racker/salus-telemetry-protocol/telemetry_edge TelemetryAmbassadorServer
 
 package ambassador_test

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"

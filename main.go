@@ -19,7 +19,7 @@
 package main
 
 import (
-	"github.com/racker/telemetry-envoy/cmd"
+	"github.com/racker/salus-telemetry-envoy/cmd"
 )
 
 var (

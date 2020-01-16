@@ -18,7 +18,7 @@ package agents_test
 
 import (
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-envoy/agents"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"

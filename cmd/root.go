@@ -18,7 +18,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/racker/telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
