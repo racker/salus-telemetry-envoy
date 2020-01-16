@@ -49,12 +49,16 @@ ingest:
   lumberjack:
     # host:port of where the lumberjack ingestion should bind
     # This is intended for consuming output from filebeat
+    # This ingestor can be disabled by setting this to an empty value, but will render the filebeat
+    # agent unusable.
     bind: localhost:5044
   telegraf:
     json:
       # host:port of where the telegraf json ingestion should bind
       # This socket will accept data output by telegraf using the socket_writer plugin and
       # a data_format of json
+      # This ingestor can be disabled by setting this to an empty value, but will render the telegraf
+      # and other agents unusable.
       bind: localhost:8094
 agents:
   # Data directory where Envoy stores downloaded agents and write agent configs
