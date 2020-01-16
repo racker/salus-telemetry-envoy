@@ -43,11 +43,11 @@ func TestPerfTestIngestor(t *testing.T) {
 	require.NoError(t, err)
 	viper.Set(config.PerfTestPort, port)
 	ingestor := &ingest.PerfTestIngestor{}
-	err = ingestor.Bind(mockEgressConnection)
+	err = ingestor.Bind()
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go ingestor.Start(ctx, connection)
+	go ingestor.Start(ctx, mockEgressConnection)
 	defer cancel()
 
 	// allow for ingestor to bind and webserver to start

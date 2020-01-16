@@ -90,11 +90,11 @@ func TestTelegrafJson_Start(t *testing.T) {
 			ingestor := &ingest.TelegrafJson{}
 			addr := net.JoinHostPort("localhost", strconv.Itoa(port))
 			viper.Set(config.IngestTelegrafJsonBind, addr)
-			err = ingestor.Bind(mockEgressConnection)
+			err = ingestor.Bind()
 			require.NoError(t, err)
 
 			ctx, cancel := context.WithCancel(context.Background())
-			go ingestor.Start(ctx, connection)
+			go ingestor.Start(ctx, mockEgressConnection)
 			defer cancel()
 
 			// allow for ingestor to bind and accept connections
