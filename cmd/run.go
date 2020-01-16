@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,15 @@ var runCmd = &cobra.Command{
 
 			detachChan := make(chan struct{}, 1)
 
+			// Bind ingestors before agents created since they need the resolved, bound address
+			// of each ingestor
+			for _, ingestor := range ingest.Ingestors() {
+				err := ingestor.Bind()
+				if err != nil {
+					log.WithError(err).WithField("ingestor", ingestor).Fatal("failed to connect ingestor")
+				}
+			}
+
 			agentsRunner, err := agents.NewAgentsRunner(detachChan)
 			if err != nil {
 				log.WithError(err).Fatal("unable to setup agent runner")
@@ -47,18 +56,11 @@ var runCmd = &cobra.Command{
 			}
 
 			for _, ingestor := range ingest.Ingestors() {
-				err := ingestor.Bind(connection)
-				if err != nil {
-					log.WithError(err).WithField("ingestor", ingestor).Fatal("failed to connect ingestor")
-				}
+				go ingestor.Start(ctx, connection)
 			}
 
 			go agentsRunner.Start(ctx)
 			go connection.Start(ctx, agents.SupportedAgents())
-
-			for _, ingestor := range ingest.Ingestors() {
-				go ingestor.Start(ctx)
-			}
 		})
 	},
 }

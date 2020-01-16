@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -43,7 +43,7 @@ var telegrafMainConfigTmpl = template.Must(template.New("telegrafMain").Parse(`
   flush_jitter = "2s"
   omit_hostname = true
 [[outputs.socket_writer]]
-  address = "tcp://{{.IngestHost}}:{{.IngestPort}}"
+  address = "tcp://{{.IngestAddress}}"
   data_format = "json"
   json_timestamp_units = "1ms"
 [[inputs.internal]]
@@ -55,15 +55,13 @@ var (
 )
 
 type telegrafMainConfigData struct {
-	IngestHost                string
-	IngestPort                string
+	IngestAddress             string
 	DefaultMonitoringInterval time.Duration
 	MaxFlushInterval          time.Duration
 }
 
 type TelegrafRunner struct {
-	ingestHost          string
-	ingestPort          string
+	ingestAddress       string
 	basePath            string
 	running             *AgentRunningContext
 	commandHandler      CommandHandler
@@ -86,13 +84,7 @@ func init() {
 }
 
 func (tr *TelegrafRunner) Load(agentBasePath string) error {
-	ingestAddr := viper.GetString(config.IngestTelegrafJsonBind)
-	host, port, err := net.SplitHostPort(ingestAddr)
-	if err != nil {
-		return errors.Wrap(err, "couldn't parse telegraf ingest bind")
-	}
-	tr.ingestHost = host
-	tr.ingestPort = port
+	tr.ingestAddress = config.GetListenerAddress(config.TelegrafJsonListener)
 	tr.basePath = agentBasePath
 	tr.configServerToken = uuid.NewV4().String()
 	tr.configServerHandler = func(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +92,7 @@ func (tr *TelegrafRunner) Load(agentBasePath string) error {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		_, err = w.Write(tr.concatConfigs())
+		_, err := w.Write(tr.concatConfigs())
 		if err != nil {
 			log.Errorf("Error writing config page %v", err)
 		}
@@ -268,8 +260,7 @@ func (tr *TelegrafRunner) Stop() {
 
 func (tr *TelegrafRunner) createMainConfig() ([]byte, error) {
 	data := &telegrafMainConfigData{
-		IngestHost:                tr.ingestHost,
-		IngestPort:                tr.ingestPort,
+		IngestAddress:             tr.ingestAddress,
 		DefaultMonitoringInterval: viper.GetDuration(config.AgentsDefaultMonitoringInterval),
 		MaxFlushInterval:          viper.GetDuration(config.AgentsMaxFlushInterval),
 	}

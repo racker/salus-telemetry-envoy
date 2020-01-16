@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,9 @@
 package agents_test
 
 import (
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -44,7 +45,7 @@ func TestFilebeatRunner_ProcessConfig_CreateModify(t *testing.T) {
 			runner := &agents.FilebeatRunner{}
 			err = runner.Load(dataPath)
 			require.NoError(t, err)
-			runner.LumberjackBind = "localhost:5555"
+			config.RegisterListenerAddress(config.LumberjackListener, "0.0.0.0:5555")
 
 			configure := &telemetry_edge.EnvoyInstructionConfigure{
 				AgentType: telemetry_edge.AgentType_FILEBEAT,
@@ -68,7 +69,8 @@ func TestFilebeatRunner_ProcessConfig_CreateModify(t *testing.T) {
 					require.NoError(t, err)
 
 					assert.Contains(t, string(content), "path: config.d/*.yml")
-					assert.Contains(t, string(content), "hosts: [\"localhost:5555\"]")
+					// confirm listener registration substituted bound host with loopback IP
+					assert.Contains(t, string(content), "hosts: [\"127.0.0.1:5555\"]")
 				} else if filepath.Base(path) == "a-b-c.yml" {
 					instanceConfigs++
 					content, err := ioutil.ReadFile(path)

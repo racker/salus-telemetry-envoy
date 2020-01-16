@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/agents"
 	"github.com/racker/salus-telemetry-envoy/agents/matchers"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +60,7 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			defer os.RemoveAll(dataPath)
 
 			runner := &agents.TelegrafRunner{}
-			viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+			config.RegisterListenerAddress(config.TelegrafJsonListener, "localhost:8094")
 			viper.Set(config.AgentsDefaultMonitoringInterval, 30*time.Second)
 			viper.Set(config.AgentsMaxFlushInterval, 31*time.Second)
 			err = runner.Load(dataPath)
@@ -90,7 +90,8 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			assert.Contains(t, string(content), "interval = \"30s\"")
 			assert.Contains(t, string(content), "flush_interval = \"31s\"")
 			assert.Contains(t, string(content), "outputs.socket_writer")
-			assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
+			// confirm listener registration swapped out host with loopback IP
+			assert.Contains(t, string(content), "address = \"tcp://127.0.0.1:8094\"")
 			assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
 			// optionally assert the per plugin interval
 			if tt.expectedInterval != "" {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"github.com/petergtz/pegomock"
 	"github.com/phayes/freeport"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/racker/salus-telemetry-envoy/ingest"
 	"github.com/racker/salus-telemetry-envoy/ingest/matchers"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -47,7 +47,7 @@ func TestPerfTestIngestor(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go ingestor.Start(ctx)
+	go ingestor.Start(ctx, connection)
 	defer cancel()
 
 	// allow for ingestor to bind and webserver to start

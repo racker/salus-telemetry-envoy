@@ -95,6 +95,10 @@ On MacOS you can install both by performing a
 make init
 ```
 
+#### (Re-)Generating Mock Files
+
+Generated mock files are used for unit testing. If using `make test` the generation of those mock files happens automatically; however, if you need to specifically (re)generate those, you can use `make generate`.
+
 ### IntelliJ Run Config
 
 This module is actually a submodule of the [salus-telemetry-bundle] (https://github.com/racker/salus-telemetry-bundle).  The following instructions expect that you have installed that repo with this as a submodule.
