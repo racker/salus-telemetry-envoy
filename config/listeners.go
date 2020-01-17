@@ -33,6 +33,8 @@ func RegisterListenerAddress(name string, address string) {
 	// The given address is relative to the binding, so it might contain the special "all interfaces"
 	// address of 0.0.0.0. As such, we need to pick apart and rebuild an address suitable for
 	// telling local agents how to connect to the given bound address.
+	// This will allow a server without an envoy to send its metrics to a
+	// different server's envoy/ingestor.
 
 	_, port, err := net.SplitHostPort(address)
 	if err != nil {
