@@ -17,8 +17,7 @@
 package config
 
 import (
-	"log"
-	"net"
+	"golang.org/x/tools/go/ssa/interp/testdata/src/strings"
 	"sync"
 )
 
@@ -30,18 +29,10 @@ const (
 var listenerAddresses sync.Map
 
 func RegisterListenerAddress(name string, address string) {
-	// The given address is relative to the binding, so it might contain the special "all interfaces"
-	// address of 0.0.0.0. As such, we need to pick apart and rebuild an address suitable for
-	// telling local agents how to connect to the given bound address.
-	// This will allow a server without an envoy to send its metrics to a
-	// different server's envoy/ingestor.
-
-	_, port, err := net.SplitHostPort(address)
-	if err != nil {
-		log.Panic(err)
-	}
-
-	listenerAddresses.Store(name, "127.0.0.1:"+port)
+	// The given address is relative to the binding, so if an ingestor has been configured to
+	// listen on all interfaces with 0.0.0.0, such as for accepting telemetry from
+	// non-envoy-running hosts, then the agent needs to be told the loopback address to dial.
+	listenerAddresses.Store(name, strings.Replace(address, "0.0.0.0", "127.0.0.1", 1))
 }
 
 func GetListenerAddress(name string) string {
