@@ -90,8 +90,7 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			assert.Contains(t, string(content), "interval = \"30s\"")
 			assert.Contains(t, string(content), "flush_interval = \"31s\"")
 			assert.Contains(t, string(content), "outputs.socket_writer")
-			// confirm listener registration swapped out host with loopback IP
-			assert.Contains(t, string(content), "address = \"tcp://127.0.0.1:8094\"")
+			assert.Contains(t, string(content), "address = \"tcp://localhost:8094\"")
 			assert.Contains(t, string(content), "[inputs]\n\n  [[inputs.mem]]\n")
 			// optionally assert the per plugin interval
 			if tt.expectedInterval != "" {
