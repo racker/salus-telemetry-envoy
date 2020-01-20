@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ package ingest
 import (
 	"context"
 	"fmt"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/ambassador"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"net"
@@ -42,22 +42,22 @@ func init() {
 	registerIngestor(&PerfTestIngestor{})
 }
 
-func (p *PerfTestIngestor) Bind(conn ambassador.EgressConnection) error {
+func (p *PerfTestIngestor) Bind() error {
 	if viper.GetInt(config.PerfTestPort) == 0 {
 		return nil
 	}
 	log.Info("entering perfTest mode")
-	p.egressConn = conn
 	p.metricsPerMinute = 60
 	p.floatsPerMetric = 10
 	p.newRateC = make(chan int)
 	return nil
 }
 
-func (p *PerfTestIngestor) Start(ctx context.Context) {
+func (p *PerfTestIngestor) Start(ctx context.Context, conn ambassador.EgressConnection) {
 	if viper.GetInt(config.PerfTestPort) == 0 {
 		return
 	}
+	p.egressConn = conn
 
 	p.ticker = time.NewTicker(time.Duration(int64(time.Minute) / int64(p.metricsPerMinute)))
 	go p.startPerfTestServer()

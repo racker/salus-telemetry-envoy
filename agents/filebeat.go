@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -37,8 +35,8 @@ const (
 )
 
 type filebeatMainConfigData struct {
-	ConfigsPath    string
-	LumberjackPort string
+	ConfigsPath       string
+	LumberjackAddress string
 }
 
 var filebeatMainConfigTmpl = template.Must(template.New("filebeatMain").Parse(`
@@ -48,11 +46,10 @@ filebeat.config.inputs:
   reload.enabled: true
   reload.period: 5s
 output.logstash:
-  hosts: ["localhost:{{.LumberjackPort}}"]
+  hosts: ["{{.LumberjackAddress}}"]
 `))
 
 type FilebeatRunner struct {
-	LumberjackBind string
 	basePath       string
 	running        *AgentRunningContext
 	commandHandler CommandHandler
@@ -74,7 +71,6 @@ func init() {
 
 func (fbr *FilebeatRunner) Load(agentBasePath string) error {
 	fbr.basePath = agentBasePath
-	fbr.LumberjackBind = viper.GetString(config.IngestLumberjackBind)
 	return nil
 }
 
@@ -86,7 +82,7 @@ func (fbr *FilebeatRunner) PostInstall() error {
 	return nil
 }
 
-func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
+func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, _ bool) {
 	log.Debug("ensuring filebeat is in correct running state")
 
 	if !fbr.hasRequiredPaths() {
@@ -165,11 +161,6 @@ func (fbr *FilebeatRunner) createMainConfig(mainConfigPath string) error {
 
 	log.WithField("path", mainConfigPath).Debug("creating main filebeat config file")
 
-	_, port, err := net.SplitHostPort(fbr.LumberjackBind)
-	if err != nil {
-		return errors.Wrapf(err, "unable to split lumberjack bind info: %v", fbr.LumberjackBind)
-	}
-
 	file, err := os.OpenFile(mainConfigPath, os.O_CREATE|os.O_RDWR, configFilePerms)
 	if err != nil {
 		return errors.Wrap(err, "unable to open main filebeat config file")
@@ -177,8 +168,8 @@ func (fbr *FilebeatRunner) createMainConfig(mainConfigPath string) error {
 	defer file.Close()
 
 	data := filebeatMainConfigData{
-		ConfigsPath:    configsDirSubpath,
-		LumberjackPort: port,
+		ConfigsPath:       configsDirSubpath,
+		LumberjackAddress: config.GetListenerAddress(config.LumberjackListener),
 	}
 
 	err = filebeatMainConfigTmpl.Execute(file, data)
@@ -241,6 +232,6 @@ func (fbr *FilebeatRunner) exePath() string {
 	return filepath.Join(currentVerLink, binSubpath, "filebeat")
 }
 
-func (fbr *FilebeatRunner) ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error) {
+func (fbr *FilebeatRunner) ProcessTestMonitor(string, string, time.Duration) (*telemetry_edge.TestMonitorResults, error) {
 	return nil, errors.New("Test monitor not supported by filebeat agent")
 }
