@@ -17,7 +17,8 @@
 package config
 
 import (
-	"strings"
+	"log"
+	"net"
 	"sync"
 )
 
@@ -29,10 +30,19 @@ const (
 var listenerAddresses sync.Map
 
 func RegisterListenerAddress(name string, address string) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		log.Panic(err)
+	}
+
 	// The given address is relative to the binding, so if an ingestor has been configured to
 	// listen on all interfaces with 0.0.0.0, such as for accepting telemetry from
 	// non-envoy-running hosts, then the agent needs to be told the loopback address to dial.
-	listenerAddresses.Store(name, strings.Replace(address, "0.0.0.0", "127.0.0.1", 1))
+	if host == "0.0.0.0" {
+		host = "127.0.0.1"
+	}
+
+	listenerAddresses.Store(name, net.JoinHostPort(host, port))
 }
 
 func GetListenerAddress(name string) string {
