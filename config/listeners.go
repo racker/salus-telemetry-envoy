@@ -25,6 +25,7 @@ import (
 const (
 	TelegrafJsonListener = "telegraf-json"
 	LumberjackListener   = "lumberjack"
+	LineProtocolListener = "line-protocol"
 )
 
 var listenerAddresses sync.Map
