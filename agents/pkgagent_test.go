@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -107,6 +108,38 @@ func TestPackagesAgentRunner_ProcessConfig(t *testing.T) {
 		})
 	}
 
+}
+
+func TestPackagesAgentRunner_ProcessConfig_remove(t *testing.T) {
+	dataPath, err := ioutil.TempDir("", "pkgagent_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+
+	runner := &agents.PackagesAgentRunner{}
+	err = runner.Load(dataPath)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(filepath.Join(dataPath, "config.d"), 0755)
+	require.NoError(t, err)
+
+	err = ioutil.WriteFile(filepath.Join(dataPath, "config.d", "monitor-rpm.json"), []byte(`{}`), 0644)
+	require.NoError(t, err)
+
+	configure := &telemetry_edge.EnvoyInstructionConfigure{
+		AgentType: telemetry_edge.AgentType_PACKAGES,
+		Operations: []*telemetry_edge.ConfigurationOp{
+			{
+				Id:   "monitor-rpm",
+				Type: telemetry_edge.ConfigurationOp_REMOVE,
+			},
+		},
+	}
+	err = runner.ProcessConfig(configure)
+	require.NoError(t, err)
+
+	found, err := readFilesIntoMap(dataPath, ".json")
+	require.NoError(t, err)
+	assert.Len(t, found, 0)
 }
 
 func TestPackagesAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {

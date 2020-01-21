@@ -133,8 +133,12 @@ func (pr *PackagesAgentRunner) ProcessConfig(configure *telemetry_edge.EnvoyInst
 
 		case telemetry_edge.ConfigurationOp_REMOVE:
 			err := os.Remove(configInstancePath)
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("failed to remove package agent config file: %w", err)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					return fmt.Errorf("failed to remove package agent config file: %w", err)
+				}
+			} else {
+				applied++
 			}
 		}
 	}
