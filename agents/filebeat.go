@@ -32,6 +32,7 @@ import (
 
 const (
 	filebeatMainConfigFilename = "filebeat.yml"
+	filebeatExeName            = "filebeat"
 )
 
 type filebeatMainConfigData struct {
@@ -56,13 +57,7 @@ type FilebeatRunner struct {
 }
 
 func (fbr *FilebeatRunner) PurgeConfig() error {
-	configsPath := path.Join(fbr.basePath, configsDirSubpath)
-	err := os.RemoveAll(configsPath)
-	if err != nil {
-		return errors.Wrap(err, "FilebeatRunner failed to purge configs directory")
-	}
-
-	return nil
+	return purgeConfigsDirectory(fbr.basePath)
 }
 
 func init() {
@@ -85,7 +80,7 @@ func (fbr *FilebeatRunner) PostInstall() error {
 func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, _ bool) {
 	log.Debug("ensuring filebeat is in correct running state")
 
-	if !fbr.hasRequiredPaths() {
+	if !hasConfigsAndExeReady(fbr.basePath, filebeatExeName, ".yml") {
 		log.Debug("filebeat not runnable due to some missing paths and files")
 		fbr.commandHandler.Stop(fbr.running)
 		return
@@ -99,7 +94,7 @@ func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, _ bool) {
 
 	runningContext := fbr.commandHandler.CreateContext(ctx,
 		telemetry_edge.AgentType_FILEBEAT,
-		fbr.exePath(), fbr.basePath,
+		buildRelativeExePath(filebeatExeName), fbr.basePath,
 		"run",
 		"--path.config", "./",
 		"--path.data", "data",
@@ -125,10 +120,9 @@ func (fbr *FilebeatRunner) Stop() {
 }
 
 func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
-	configsPath := path.Join(fbr.basePath, configsDirSubpath)
-	err := os.MkdirAll(configsPath, dirPerms)
+	configsPath, err := ensureConfigsDir(fbr.basePath)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create configs path for filebeat: %v", configsPath)
+		return err
 	}
 
 	mainConfigPath := path.Join(fbr.basePath, filebeatMainConfigFilename)
@@ -178,58 +172,6 @@ func (fbr *FilebeatRunner) createMainConfig(mainConfigPath string) error {
 	}
 
 	return nil
-}
-
-func (fbr *FilebeatRunner) hasRequiredPaths() bool {
-	curVerPath := filepath.Join(fbr.basePath, currentVerLink)
-	if !fileExists(curVerPath) {
-		log.WithField("path", curVerPath).Debug("missing current version link")
-		return false
-	}
-
-	configsPath := filepath.Join(fbr.basePath, configsDirSubpath)
-	if !fileExists(configsPath) {
-		log.WithField("path", configsPath).Debug("missing configs path")
-		return false
-	}
-
-	configsDir, err := os.Open(configsPath)
-	if err != nil {
-		log.WithError(err).Warn("unable to open configs directory for listing")
-		return false
-	}
-	defer configsDir.Close()
-
-	names, err := configsDir.Readdirnames(0)
-	if err != nil {
-		log.WithError(err).WithField("path", configsPath).
-			Warn("unable to read files in configs directory")
-		return false
-	}
-
-	hasConfigs := false
-	for _, name := range names {
-		if path.Ext(name) == ".yml" {
-			hasConfigs = true
-		}
-	}
-	if !hasConfigs {
-		log.WithField("path", configsPath).Debug("missing config files")
-		return false
-	}
-
-	fullExePath := path.Join(fbr.basePath, fbr.exePath())
-	if !fileExists(fullExePath) {
-		log.WithField("exe", fullExePath).Debug("missing exe")
-		return false
-	}
-
-	return true
-}
-
-// exePath returns path to executable relative to baseDir
-func (fbr *FilebeatRunner) exePath() string {
-	return filepath.Join(currentVerLink, binSubpath, "filebeat")
 }
 
 func (fbr *FilebeatRunner) ProcessTestMonitor(string, string, time.Duration) (*telemetry_edge.TestMonitorResults, error) {
