@@ -29,6 +29,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestPackagesAgentRunner_ProcessConfig(t *testing.T) {
@@ -178,12 +179,78 @@ func TestPackagesAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 			matchers.AnyTimeDuration())
 
 	// called at steps 1 and 3
-	commandHandler.VerifyWasCalled(pegomock.Times(2)).
+	commandHandler.VerifyWasCalledEventually(pegomock.Times(2), 1*time.Second).
 		WaitOnAgentCommand(matchers.AnyContextContext(),
-			matchers.AnyAgentsSpecificAgentRunner(),
-			matchers.AnyPtrToAgentsAgentRunningContext())
+			matchers.EqAgentsSpecificAgentRunner(runner),
+			matchers.EqPtrToAgentsAgentRunningContext(runningContext))
 
 	// called only at start of step 3
 	commandHandler.VerifyWasCalled(pegomock.Once()).
 		Stop(matchers.AnyPtrToAgentsAgentRunningContext())
+}
+
+func TestPackagesAgentRunner_ProcessTestMonitor(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	content := []byte(`Some kind of logging line to ignore
+> packages,system=debian,package=sensible-utils,arch=all version="0.0.12" 1579042018775063900
+> packages,system=debian,package=sysvinit-utils,arch=amd64 version="2.88dsf-59.10ubuntu1" 1579042018775063900
+`)
+
+	commandHandler := NewMockCommandHandler()
+	pegomock.When(
+		commandHandler.RunToCompletion(matchers.AnyContextContext(),
+			pegomock.AnyString(), pegomock.AnyString(), // exe and basePath
+			pegomock.AnyString(),                       // arg to console
+			pegomock.AnyString(), pegomock.AnyString(), // arg include rpm
+			pegomock.AnyString(), pegomock.AnyString(), // arg include debian
+		),
+	).
+		ThenReturn(content, nil)
+
+	runner := &agents.PackagesAgentRunner{}
+	runner.SetCommandHandler(commandHandler)
+
+	results, err := runner.ProcessTestMonitor("request-1", `{"include-debian":true}`, 60*time.Second)
+	require.NoError(t, err)
+
+	require.NotNil(t, results)
+	assert.Equal(t, "request-1", results.CorrelationId)
+	assert.Empty(t, results.Errors)
+	assert.Len(t, results.Metrics, 2)
+
+	metric := results.Metrics[0].GetNameTagValue()
+	assert.Equal(t, "packages", metric.Name)
+	assert.Equal(t, int64(1579042018775), metric.Timestamp)
+	assert.Equal(t, map[string]string{
+		"system":  "debian",
+		"package": "sensible-utils",
+		"arch":    "all",
+	}, metric.Tags)
+	assert.Equal(t, map[string]string{
+		"version": "0.0.12",
+	}, metric.Svalues)
+
+	metric = results.Metrics[1].GetNameTagValue()
+	assert.Equal(t, "packages", metric.Name)
+	assert.Equal(t, int64(1579042018775), metric.Timestamp)
+	assert.Equal(t, map[string]string{
+		"system":  "debian",
+		"package": "sysvinit-utils",
+		"arch":    "amd64",
+	}, metric.Tags)
+	assert.Equal(t, map[string]string{
+		"version": "2.88dsf-59.10ubuntu1",
+	}, metric.Svalues)
+
+	commandHandler.VerifyWasCalledOnce().
+		RunToCompletion(matchers.AnyContextContext(),
+			pegomock.EqString("CURRENT/bin/salus-packages-agent"),
+			pegomock.AnyString(),
+			pegomock.EqString("--line-protocol-to-console"),
+			pegomock.EqString("--include-rpm"),
+			pegomock.EqString("false"),
+			pegomock.EqString("--include-debian"),
+			pegomock.EqString("true"),
+		)
 }

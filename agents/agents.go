@@ -18,6 +18,8 @@ package agents
 
 import (
 	"archive/tar"
+	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"fmt"
@@ -285,4 +287,34 @@ func ensureConfigsDir(basepath string) (string, error) {
 		return "", fmt.Errorf("failed to create configs path %s: %w", configsPath, err)
 	}
 	return configsPath, err
+}
+
+func getBoolFromConfigMap(configMap map[string]interface{}, field string, defaultVal bool) bool {
+	if val, exists := configMap[field]; exists {
+		if boolVal, ok := val.(bool); ok {
+			return boolVal
+		} else {
+			return defaultVal
+		}
+	} else {
+		return defaultVal
+	}
+}
+
+// filterLines will split the given content into lines, pass each line to the given filter
+// and only keep those lines when filter returns true. The resulting lines are appended back
+// together and returned as a byte slice.
+func filterLines(content []byte, filter func(string) bool) []byte {
+	bufIn := bytes.NewBuffer(content)
+	var bufOut bytes.Buffer
+
+	scanner := bufio.NewScanner(bufIn)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if filter(line) {
+			bufOut.WriteString(line + "\n")
+		}
+	}
+
+	return bufOut.Bytes()
 }

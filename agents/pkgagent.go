@@ -20,12 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/lineproto"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -174,6 +176,53 @@ func (pr *PackagesAgentRunner) writeConfigFile(path string, op *telemetry_edge.C
 }
 
 func (pr *PackagesAgentRunner) ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error) {
-	//TODO
-	return nil, errors.New("Test monitor not yet supported by packages agent")
+	var configMap map[string]interface{}
+	err := json.Unmarshal([]byte(content), &configMap)
+	if err != nil {
+		return nil, err
+	}
+
+	includeRpm := getBoolFromConfigMap(configMap, "include-rpm", false)
+	includeDebian := getBoolFromConfigMap(configMap, "include-debian", false)
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
+	defer cancelFunc()
+
+	output, err := pr.commandHandler.RunToCompletion(ctx,
+		buildRelativeExePath(packageAgentExeName), pr.basePath,
+		"--line-protocol-to-console",
+		"--include-rpm", strconv.FormatBool(includeRpm),
+		"--include-debian", strconv.FormatBool(includeDebian),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// filter to keep only the metric output lines which will be prefixed in order to avoid
+	// attempting to parse any log output
+	// See https://github.com/racker/salus-packages-agent/#console
+	filtered := filterLines(output, func(line string) bool {
+		return strings.HasPrefix(line, "> ")
+	})
+
+	parsedMetrics, err := lineproto.ParseInfluxLineProtocolMetrics(filtered)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wrap up the named tag-value metrics into the general metrics type
+	metrics := make([]*telemetry_edge.Metric, len(parsedMetrics))
+	for i, metric := range parsedMetrics {
+		metrics[i] = &telemetry_edge.Metric{
+			Variant: &telemetry_edge.Metric_NameTagValue{NameTagValue: metric},
+		}
+	}
+
+	results := &telemetry_edge.TestMonitorResults{
+		CorrelationId: correlationId,
+		Errors:        []string{},
+		Metrics:       metrics,
+	}
+
+	return results, nil
 }
