@@ -62,6 +62,14 @@ ingest:
       # and other agents unusable.
       # The port can be set to 0 or left off to allow any available port to be used.
       bind: localhost:8094
+  lineProtocol:
+    # host:port where TCP Influx line protocol ingestion should bind
+    # This socket will accept data in the same way as telegraf's socket_listener with a data
+    # format of "influx".
+    # This ingestor can be disabled by setting this to an empty value, but will render the telegraf
+    # and other agents unusable.
+    # The port can be set to 0 or left off to allow any available port to be used.
+    bind: localhost:8194
 agents:
   # Data directory where Envoy stores downloaded agents and write agent configs
   dataPath: /var/lib/telemetry-envoy
