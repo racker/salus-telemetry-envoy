@@ -116,9 +116,15 @@ func (h *StandardCommandHandler) RunToCompletion(ctx context.Context, cmdName st
 func (h *StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, runningContext *AgentRunningContext) {
 	err := runningContext.cmd.Wait()
 	if err != nil {
-		log.WithError(err).
-			WithField("agentType", runningContext.agentType).
-			Warn("agent exited abnormally")
+		if err.Error() != "signal: terminated" {
+			log.WithError(err).
+				WithField("agentType", runningContext.agentType).
+				Warn("agent exited abnormally")
+		} else {
+			log.
+				WithField("agentType", runningContext.agentType).
+				Info("agent exited successfully")
+		}
 	} else {
 		log.
 			WithField("agentType", runningContext.agentType).
