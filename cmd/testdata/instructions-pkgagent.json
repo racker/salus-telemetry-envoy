@@ -1,0 +1,26 @@
+{
+  "instructions": [
+    {
+      "install": {
+        "agent": {
+          "type": "PACKAGES",
+          "version": "0.1.0"
+        },
+        "url": "https://github.com/racker/salus-packages-agent/releases/download/v0.1.0/salus-packages-agent_0.1.0_Darwin_x86_64.tar.gz",
+        "exe": "salus-packages-agent"
+      }
+    },
+    {
+      "configure": {
+        "agentType": "PACKAGES",
+        "operations": [
+          {
+            "id": "monitor-1",
+            "content": "{\"type\": \"packages\",\"include-debian\":true, \"fail-when-not-supported\": true}",
+            "interval": "10"
+          }
+        ]
+      }
+    }
+  ]
+}
