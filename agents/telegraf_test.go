@@ -132,13 +132,7 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	// touch the file telegraf "exe" in the bin directory
-	binPath := path.Join(dataPath, "CURRENT", "bin")
-	err = os.MkdirAll(binPath, 0755)
-	require.NoError(t, err)
-	binFileOut, err := os.Create(path.Join(binPath, "telegraf"))
-	require.NoError(t, err)
-	binFileOut.Close()
+	err = createFakeAgentExe(t, dataPath, "telegraf")
 
 	commandHandler := NewMockCommandHandler()
 	ctx := context.Background()
