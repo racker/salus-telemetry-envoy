@@ -180,7 +180,7 @@ func TestPackagesAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 				Interval: 3600,
 			}},
 	}
-	// it's safe to the real ProcessConfig since it was tested in previous test case
+	// it's safe to call the real ProcessConfig since it was tested in previous test case
 	err = runner.ProcessConfig(configure)
 	require.NoError(t, err)
 
