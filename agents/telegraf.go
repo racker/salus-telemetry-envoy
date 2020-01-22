@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/lineproto"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
@@ -353,7 +354,7 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 		}
 	} else {
 		// ... and process output
-		parsedMetrics, err := ParseInfluxLineProtocolMetrics(cmdOut)
+		parsedMetrics, err := lineproto.ParseInfluxLineProtocolMetrics(cmdOut)
 		if err != nil {
 			results.Errors = append(results.Errors, "Parse: "+err.Error())
 		} else {

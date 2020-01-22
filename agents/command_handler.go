@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import (
 	"bufio"
 	"context"
 	"github.com/pkg/errors"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
@@ -45,6 +45,8 @@ type CommandHandler interface {
 	WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, runningContext *AgentRunningContext)
 	Signal(runningContext *AgentRunningContext, signal syscall.Signal) error
 	Stop(runningContext *AgentRunningContext)
+	// RunToCompletion combines the behavior (or equivalent thereof) of exec.Command with cmd.Output
+	RunToCompletion(ctx context.Context, cmdName string, workingDir string, arg ...string) ([]byte, error)
 }
 
 type StandardCommandHandler struct{}
@@ -105,12 +107,24 @@ func (h *StandardCommandHandler) StartAgentCommand(runningContext *AgentRunningC
 	}
 }
 
+func (h *StandardCommandHandler) RunToCompletion(ctx context.Context, cmdName string, workingDir string, arg ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, cmdName, arg...)
+	cmd.Dir = workingDir
+	return cmd.Output()
+}
+
 func (h *StandardCommandHandler) WaitOnAgentCommand(ctx context.Context, agentRunner SpecificAgentRunner, runningContext *AgentRunningContext) {
 	err := runningContext.cmd.Wait()
 	if err != nil {
-		log.WithError(err).
-			WithField("agentType", runningContext.agentType).
-			Warn("agent exited abnormally")
+		if err.Error() != "signal: terminated" {
+			log.WithError(err).
+				WithField("agentType", runningContext.agentType).
+				Warn("agent exited abnormally")
+		} else {
+			log.
+				WithField("agentType", runningContext.agentType).
+				Info("agent exited successfully")
+		}
 	} else {
 		log.
 			WithField("agentType", runningContext.agentType).
