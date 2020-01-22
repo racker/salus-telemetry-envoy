@@ -125,6 +125,11 @@ func TestPackagesAgentRunner_ProcessConfig_remove(t *testing.T) {
 	err = ioutil.WriteFile(filepath.Join(dataPath, "config.d", "monitor-rpm.json"), []byte(`{}`), 0644)
 	require.NoError(t, err)
 
+	// sanity check the "config file" above landed in the config area validated below
+	found, err := readFilesIntoMap(dataPath, ".json")
+	require.NoError(t, err)
+	require.Len(t, found, 1)
+
 	configure := &telemetry_edge.EnvoyInstructionConfigure{
 		AgentType: telemetry_edge.AgentType_PACKAGES,
 		Operations: []*telemetry_edge.ConfigurationOp{
@@ -137,7 +142,7 @@ func TestPackagesAgentRunner_ProcessConfig_remove(t *testing.T) {
 	err = runner.ProcessConfig(configure)
 	require.NoError(t, err)
 
-	found, err := readFilesIntoMap(dataPath, ".json")
+	found, err = readFilesIntoMap(dataPath, ".json")
 	require.NoError(t, err)
 	assert.Len(t, found, 0)
 }
@@ -175,7 +180,7 @@ func TestPackagesAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 				Interval: 3600,
 			}},
 	}
-	// assumes testing from previous test case
+	// it's safe to the real ProcessConfig since it was tested in previous test case
 	err = runner.ProcessConfig(configure)
 	require.NoError(t, err)
 

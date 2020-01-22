@@ -256,6 +256,7 @@ func hasConfigsAndExeReady(basepath string, exeName string, configFileExtension 
 	for _, name := range names {
 		if path.Ext(name) == configFileExtension {
 			hasConfigs = true
+			break
 		}
 	}
 	if !hasConfigs {
