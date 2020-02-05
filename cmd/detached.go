@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package cmd
 
 import (
 	"context"
-	"github.com/racker/telemetry-envoy/agents"
-	"github.com/racker/telemetry-envoy/ambassador"
-	"github.com/racker/telemetry-envoy/ingest"
+	"github.com/racker/salus-telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-envoy/ambassador"
+	"github.com/racker/salus-telemetry-envoy/ingest"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,7 +41,16 @@ var detachedCmd = &cobra.Command{
 
 			detachChan := make(chan struct{}, 1)
 
-			// start agents runner/router like normal; however, nothing will actually send to the
+			// bind ingestors like normal
+			for _, ingestor := range ingest.Ingestors() {
+				err := ingestor.Bind()
+				if err != nil {
+					log.WithError(err).WithField("ingestor", ingestor).
+						Fatal("failed to connect ingestor")
+				}
+			}
+
+			// create agents runner/router like normal; however, nothing will actually send to the
 			// given detached channel
 			agentsRunner, err := agents.NewAgentsRunner(detachChan)
 			if err != nil {
@@ -51,22 +60,14 @@ var detachedCmd = &cobra.Command{
 			// use a "stub" egress "connection" that outputs metrics to stdout
 			connection := ambassador.NewStdoutEgressConnection()
 
-			// start ingestors like normal
+			// ...and start ingestors like normal
 			for _, ingestor := range ingest.Ingestors() {
-				err := ingestor.Bind(connection)
-				if err != nil {
-					log.WithError(err).WithField("ingestor", ingestor).
-						Fatal("failed to connect ingestor")
-				}
+				go ingestor.Start(ctx, connection)
 			}
 
 			// start everything like normal
 			go agentsRunner.Start(ctx)
 			go connection.Start(ctx, agents.SupportedAgents())
-
-			for _, ingestor := range ingest.Ingestors() {
-				go ingestor.Start(ctx)
-			}
 
 			// give the goroutines above a few cycles to actually be ready
 			time.Sleep(100 * time.Millisecond)

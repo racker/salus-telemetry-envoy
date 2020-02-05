@@ -1,0 +1,11 @@
+{
+  "type": "apache",
+  "url": "rackspace.com",
+  "username": "user",
+  "password": "pass",
+  "timeout": null,
+  "tlsCa": null,
+  "tlsCert": null,
+  "tlsKey": null,
+  "insecureSkipVerify": null
+}

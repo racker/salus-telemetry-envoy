@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -34,11 +32,12 @@ import (
 
 const (
 	filebeatMainConfigFilename = "filebeat.yml"
+	filebeatExeName            = "filebeat"
 )
 
 type filebeatMainConfigData struct {
-	ConfigsPath    string
-	LumberjackPort string
+	ConfigsPath       string
+	LumberjackAddress string
 }
 
 var filebeatMainConfigTmpl = template.Must(template.New("filebeatMain").Parse(`
@@ -48,24 +47,17 @@ filebeat.config.inputs:
   reload.enabled: true
   reload.period: 5s
 output.logstash:
-  hosts: ["localhost:{{.LumberjackPort}}"]
+  hosts: ["{{.LumberjackAddress}}"]
 `))
 
 type FilebeatRunner struct {
-	LumberjackBind string
 	basePath       string
 	running        *AgentRunningContext
 	commandHandler CommandHandler
 }
 
 func (fbr *FilebeatRunner) PurgeConfig() error {
-	configsPath := path.Join(fbr.basePath, configsDirSubpath)
-	err := os.RemoveAll(configsPath)
-	if err != nil {
-		return errors.Wrap(err, "FilebeatRunner failed to purge configs directory")
-	}
-
-	return nil
+	return purgeConfigsDirectory(fbr.basePath)
 }
 
 func init() {
@@ -74,7 +66,6 @@ func init() {
 
 func (fbr *FilebeatRunner) Load(agentBasePath string) error {
 	fbr.basePath = agentBasePath
-	fbr.LumberjackBind = viper.GetString(config.IngestLumberjackBind)
 	return nil
 }
 
@@ -86,10 +77,10 @@ func (fbr *FilebeatRunner) PostInstall() error {
 	return nil
 }
 
-func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
+func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, _ bool) {
 	log.Debug("ensuring filebeat is in correct running state")
 
-	if !fbr.hasRequiredPaths() {
+	if !hasConfigsAndExeReady(fbr.basePath, filebeatExeName, ".yml") {
 		log.Debug("filebeat not runnable due to some missing paths and files")
 		fbr.commandHandler.Stop(fbr.running)
 		return
@@ -103,7 +94,7 @@ func (fbr *FilebeatRunner) EnsureRunningState(ctx context.Context, applyConfigs 
 
 	runningContext := fbr.commandHandler.CreateContext(ctx,
 		telemetry_edge.AgentType_FILEBEAT,
-		fbr.exePath(), fbr.basePath,
+		buildRelativeExePath(filebeatExeName), fbr.basePath,
 		"run",
 		"--path.config", "./",
 		"--path.data", "data",
@@ -129,10 +120,9 @@ func (fbr *FilebeatRunner) Stop() {
 }
 
 func (fbr *FilebeatRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error {
-	configsPath := path.Join(fbr.basePath, configsDirSubpath)
-	err := os.MkdirAll(configsPath, dirPerms)
+	configsPath, err := ensureConfigsDir(fbr.basePath)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create configs path for filebeat: %v", configsPath)
+		return err
 	}
 
 	mainConfigPath := path.Join(fbr.basePath, filebeatMainConfigFilename)
@@ -165,11 +155,6 @@ func (fbr *FilebeatRunner) createMainConfig(mainConfigPath string) error {
 
 	log.WithField("path", mainConfigPath).Debug("creating main filebeat config file")
 
-	_, port, err := net.SplitHostPort(fbr.LumberjackBind)
-	if err != nil {
-		return errors.Wrapf(err, "unable to split lumberjack bind info: %v", fbr.LumberjackBind)
-	}
-
 	file, err := os.OpenFile(mainConfigPath, os.O_CREATE|os.O_RDWR, configFilePerms)
 	if err != nil {
 		return errors.Wrap(err, "unable to open main filebeat config file")
@@ -177,8 +162,8 @@ func (fbr *FilebeatRunner) createMainConfig(mainConfigPath string) error {
 	defer file.Close()
 
 	data := filebeatMainConfigData{
-		ConfigsPath:    configsDirSubpath,
-		LumberjackPort: port,
+		ConfigsPath:       configsDirSubpath,
+		LumberjackAddress: config.GetListenerAddress(config.LumberjackListener),
 	}
 
 	err = filebeatMainConfigTmpl.Execute(file, data)
@@ -189,58 +174,6 @@ func (fbr *FilebeatRunner) createMainConfig(mainConfigPath string) error {
 	return nil
 }
 
-func (fbr *FilebeatRunner) hasRequiredPaths() bool {
-	curVerPath := filepath.Join(fbr.basePath, currentVerLink)
-	if !fileExists(curVerPath) {
-		log.WithField("path", curVerPath).Debug("missing current version link")
-		return false
-	}
-
-	configsPath := filepath.Join(fbr.basePath, configsDirSubpath)
-	if !fileExists(configsPath) {
-		log.WithField("path", configsPath).Debug("missing configs path")
-		return false
-	}
-
-	configsDir, err := os.Open(configsPath)
-	if err != nil {
-		log.WithError(err).Warn("unable to open configs directory for listing")
-		return false
-	}
-	defer configsDir.Close()
-
-	names, err := configsDir.Readdirnames(0)
-	if err != nil {
-		log.WithError(err).WithField("path", configsPath).
-			Warn("unable to read files in configs directory")
-		return false
-	}
-
-	hasConfigs := false
-	for _, name := range names {
-		if path.Ext(name) == ".yml" {
-			hasConfigs = true
-		}
-	}
-	if !hasConfigs {
-		log.WithField("path", configsPath).Debug("missing config files")
-		return false
-	}
-
-	fullExePath := path.Join(fbr.basePath, fbr.exePath())
-	if !fileExists(fullExePath) {
-		log.WithField("exe", fullExePath).Debug("missing exe")
-		return false
-	}
-
-	return true
-}
-
-// exePath returns path to executable relative to baseDir
-func (fbr *FilebeatRunner) exePath() string {
-	return filepath.Join(currentVerLink, binSubpath, "filebeat")
-}
-
-func (fbr *FilebeatRunner) ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error) {
+func (fbr *FilebeatRunner) ProcessTestMonitor(string, string, time.Duration) (*telemetry_edge.TestMonitorResults, error) {
 	return nil, errors.New("Test monitor not supported by filebeat agent")
 }

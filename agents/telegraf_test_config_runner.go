@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/racker/telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"

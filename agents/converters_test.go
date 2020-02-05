@@ -18,7 +18,7 @@ package agents_test
 
 import (
 	"fmt"
-	"github.com/racker/telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-envoy/agents"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -35,6 +35,7 @@ func TestConvertJsonToToml(t *testing.T) {
 		extraLabels map[string]string
 		interval    int64
 	}{
+		{name: "apache"},
 		{name: "cpu"},
 		{name: "disk"},
 		{name: "diskio"},

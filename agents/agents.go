@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,14 @@ package agents
 
 import (
 	"archive/tar"
+	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
@@ -30,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 )
 
@@ -219,4 +223,113 @@ func handleContentConfigurationOp(op *telemetry_edge.ConfigurationOp, configInst
 	}
 
 	return false
+}
+
+// purgeConfigsDirectory can be used by agent runner's PurgeConfig when its agent is configured
+// via config files
+func purgeConfigsDirectory(basepath string) error {
+	configsPath := path.Join(basepath, configsDirSubpath)
+	err := os.RemoveAll(configsPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to purge configs directory")
+	}
+
+	return nil
+}
+
+// hasConfigsAndExeReady can be used by agent runners to evaluate readiness of the agent by
+// testing for the configs directory, files within that directory, and an installed executable
+func hasConfigsAndExeReady(basepath string, exeName string, configFileExtension string) bool {
+	curVerPath := filepath.Join(basepath, currentVerLink)
+	if !fileExists(curVerPath) {
+		log.WithField("path", curVerPath).Debug("missing current version link")
+		return false
+	}
+
+	configsPath := filepath.Join(basepath, configsDirSubpath)
+	if !fileExists(configsPath) {
+		log.WithField("path", configsPath).Debug("missing configs path")
+		return false
+	}
+
+	configsDir, err := os.Open(configsPath)
+	if err != nil {
+		log.WithError(err).Warn("unable to open configs directory for listing")
+		return false
+	}
+	defer configsDir.Close()
+
+	names, err := configsDir.Readdirnames(0)
+	if err != nil {
+		log.WithError(err).WithField("path", configsPath).
+			Warn("unable to read files in configs directory")
+		return false
+	}
+
+	hasConfigs := false
+	for _, name := range names {
+		if path.Ext(name) == configFileExtension {
+			hasConfigs = true
+			break
+		}
+	}
+	if !hasConfigs {
+		log.WithField("path", configsPath).Debug("missing config files")
+		return false
+	}
+
+	fullExePath := path.Join(basepath, buildRelativeExePath(exeName))
+	if !fileExists(fullExePath) {
+		log.WithField("exe", fullExePath).Debug("missing exe")
+		return false
+	}
+
+	return true
+}
+
+// buildRelativeExePath creates a relative path to the named executable via the standard
+// current symlink and "bin" directory convention
+func buildRelativeExePath(exeName string) string {
+	return filepath.Join(currentVerLink, binSubpath, exeName)
+}
+
+// ensureConfigsDir can be used by agent runners to ensure the standard config subdirectory exists
+// Returns the fully resolved path
+func ensureConfigsDir(basepath string) (string, error) {
+	configsPath := path.Join(basepath, configsDirSubpath)
+	err := os.MkdirAll(configsPath, dirPerms)
+	if err != nil {
+		return "", fmt.Errorf("failed to create configs path %s: %w", configsPath, err)
+	}
+	return configsPath, err
+}
+
+func getBoolFromConfigMap(configMap map[string]interface{}, field string, defaultVal bool) bool {
+	if val, exists := configMap[field]; exists {
+		if boolVal, ok := val.(bool); ok {
+			return boolVal
+		} else {
+			return defaultVal
+		}
+	} else {
+		return defaultVal
+	}
+}
+
+// filterLines will split the given content into lines, pass each line to the given filter
+// and only keep those lines when filter returns true. The resulting lines are appended back
+// together and returned as a byte slice.
+func filterLines(content []byte, filter func(string) bool) []byte {
+	bufIn := bytes.NewBuffer(content)
+	var bufOut bytes.Buffer
+
+	scanner := bufio.NewScanner(bufIn)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if filter(line) {
+			bufOut.WriteString(line + "\n")
+		}
+	}
+
+	return bufOut.Bytes()
 }

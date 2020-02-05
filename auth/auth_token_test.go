@@ -20,7 +20,7 @@ package auth_test
 
 import (
 	"github.com/pkg/errors"
-	"github.com/racker/telemetry-envoy/auth"
+	"github.com/racker/salus-telemetry-envoy/auth"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

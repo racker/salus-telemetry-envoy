@@ -1,4 +1,4 @@
-module github.com/racker/telemetry-envoy
+module github.com/racker/salus-telemetry-envoy
 
 require (
 	github.com/BurntSushi/toml v0.3.1
@@ -18,7 +18,7 @@ require (
 	github.com/petergtz/pegomock v2.7.0+incompatible
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.8.0
-	github.com/racker/salus-telemetry-protocol v0.2.1
+	github.com/racker/salus-telemetry-protocol v0.3.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/afero v1.2.0 // indirect

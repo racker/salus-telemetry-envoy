@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"github.com/petergtz/pegomock"
 	"github.com/pkg/errors"
+	"github.com/racker/salus-telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-envoy/agents/matchers"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/agents"
-	"github.com/racker/telemetry-envoy/agents/matchers"
-	"github.com/racker/telemetry-envoy/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -60,7 +60,7 @@ func TestTelegrafRunner_ProcessConfig_CreateModify(t *testing.T) {
 			defer os.RemoveAll(dataPath)
 
 			runner := &agents.TelegrafRunner{}
-			viper.Set(config.IngestTelegrafJsonBind, "localhost:8094")
+			config.RegisterListenerAddress(config.TelegrafJsonListener, "localhost:8094")
 			viper.Set(config.AgentsDefaultMonitoringInterval, 30*time.Second)
 			viper.Set(config.AgentsMaxFlushInterval, 31*time.Second)
 			err = runner.Load(dataPath)
@@ -132,13 +132,7 @@ func TestTelegrafRunner_EnsureRunningState_FullSequence(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
-	// touch the file telegraf "exe" in the bin directory
-	binPath := path.Join(dataPath, "CURRENT", "bin")
-	err = os.MkdirAll(binPath, 0755)
-	require.NoError(t, err)
-	binFileOut, err := os.Create(path.Join(binPath, "telegraf"))
-	require.NoError(t, err)
-	binFileOut.Close()
+	err = createFakeAgentExe(t, dataPath, "telegraf")
 
 	commandHandler := NewMockCommandHandler()
 	ctx := context.Background()

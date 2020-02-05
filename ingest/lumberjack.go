@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,18 @@ import (
 	"encoding/json"
 	"github.com/elastic/go-lumber/lj"
 	"github.com/elastic/go-lumber/server"
+	"github.com/pkg/errors"
+	"github.com/racker/salus-telemetry-envoy/ambassador"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/ambassador"
-	"github.com/racker/telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"net"
 )
 
 type Lumberjack struct {
 	egressConn ambassador.EgressConnection
+	listener   net.Listener
 	server     server.Server
 }
 
@@ -41,23 +44,42 @@ func init() {
 	registerIngestor(&Lumberjack{})
 }
 
-func (l *Lumberjack) Bind(connection ambassador.EgressConnection) error {
-	l.egressConn = connection
-
+func (l *Lumberjack) Bind() error {
 	address := viper.GetString(config.IngestLumberjackBind)
-
-	var err error
-	l.server, err = server.ListenAndServe(address, server.V2(true))
-	if err != nil {
-		return err
+	// check if ingest is disabled via absent config
+	if address == "" {
+		return nil
 	}
 
-	log.WithField("address", address).Debug("Listening for lumberjack")
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return errors.Wrap(err, "failed to bind lumberjack listener")
+	}
+
+	config.RegisterListenerAddress(config.LumberjackListener, listener.Addr().String())
+	l.listener = listener
+
+	log.WithField("address", address).Debug("listening for lumberjack")
 	return nil
 }
 
 // Start processes incoming lumberjack batches
-func (l *Lumberjack) Start(ctx context.Context) {
+func (l *Lumberjack) Start(ctx context.Context, connection ambassador.EgressConnection) {
+	if l.listener == nil {
+		log.Debug("lumberjack ingest is disabled")
+		return
+	}
+	l.egressConn = connection
+
+	var err error
+	l.server, err = server.ListenAndServeWith(func(network, addr string) (net.Listener, error) {
+		// provide our own binder so we can intercept and return the listener that was pre-bound
+		return l.listener, err
+	}, l.listener.Addr().String(), server.V2(true))
+	if err != nil {
+		log.WithError(err).Fatal("unable to start lumberjack server")
+	}
+
 	for {
 		select {
 		case <-ctx.Done():

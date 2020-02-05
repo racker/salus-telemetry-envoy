@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/pkg/errors"
+	"github.com/racker/salus-telemetry-envoy/ambassador"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/ambassador"
-	"github.com/racker/telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"net"
@@ -52,21 +52,31 @@ func init() {
 	registerIngestor(&TelegrafJson{})
 }
 
-func (t *TelegrafJson) Bind(conn ambassador.EgressConnection) error {
-	bind := viper.GetString(config.IngestTelegrafJsonBind)
-
-	listener, err := net.Listen("tcp", bind)
-	if err != nil {
-		return errors.Wrap(err, "failed to bind telegraf json listenener")
+func (t *TelegrafJson) Bind() error {
+	address := viper.GetString(config.IngestTelegrafJsonBind)
+	// check if ingest is disabled via absent config
+	if address == "" {
+		return nil
 	}
 
-	t.listener = listener
-	t.egressConn = conn
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return errors.Wrap(err, "failed to bind telegraf json listener")
+	}
 
+	config.RegisterListenerAddress(config.TelegrafJsonListener, listener.Addr().String())
+	t.listener = listener
+
+	log.WithField("address", address).Debug("listening for telegraf json")
 	return nil
 }
 
-func (t *TelegrafJson) Start(ctx context.Context) {
+func (t *TelegrafJson) Start(ctx context.Context, connection ambassador.EgressConnection) {
+	if t.listener == nil {
+		log.Debug("telegraf json ingest is disabled")
+		return
+	}
+	t.egressConn = connection
 
 	t.metrics = make(chan *telegrafJsonMetric, telegrafJsonMetricChanSize)
 	go t.acceptConnections(ctx)

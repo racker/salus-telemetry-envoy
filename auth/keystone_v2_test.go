@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"github.com/oliveagle/jsonpath"
 	"github.com/phayes/freeport"
-	"github.com/racker/telemetry-envoy/auth"
+	"github.com/racker/salus-telemetry-envoy/auth"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

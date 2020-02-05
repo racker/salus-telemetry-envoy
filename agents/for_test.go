@@ -15,9 +15,9 @@
  */
 
 // NOTE: need to use package mode of pegomock since it can't yet handle same-package interface references
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents CommandHandler
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents SpecificAgentRunner
-//go:generate pegomock generate -m github.com/racker/telemetry-envoy/agents TelegrafTestConfigRunner
+//go:generate pegomock generate -m github.com/racker/salus-telemetry-envoy/agents CommandHandler
+//go:generate pegomock generate -m github.com/racker/salus-telemetry-envoy/agents SpecificAgentRunner
+//go:generate pegomock generate -m github.com/racker/salus-telemetry-envoy/agents TelegrafTestConfigRunner
 //go:generate pegomock generate -m io Closer
 
 package agents_test
