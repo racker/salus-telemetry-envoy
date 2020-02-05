@@ -6,3 +6,4 @@ ambassador:
   address: localhost:6565
 lumberjack:
   bind: localhost:5044
+resource_id: 1234

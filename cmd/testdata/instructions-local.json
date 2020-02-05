@@ -6,8 +6,8 @@
           "version": "0.1",
           "type": "ORACLE"
         },
-        "url": "https://github.com/racker/salus-oracle-agent/releases/download/0.1/salus-oracle-agent_0.1_Darwin_x86_64.tar.gz",
-        "exe": "oracle/0.1/bin/salus-oracle-agent"
+        "url": "file:///Users/adam9500/workspace/salus-telemetry-bundle/apps/oracle-agent/oracle_agent.tar.gz",
+        "exe": "ORACLE/0.1/bin/salus-oracle-agent"
       }
     },
     {
@@ -17,7 +17,7 @@
           "id": "aaaaaa_19f1044c-9ef5-427c-955f-59deca60f0ff_development:0",
           "revision": "revision",
           "type": 0,
-          "content": "{\"type\":\"oracle_tablespace\",\"databaseNames\":[\"tablespace\"],\"filePath\":\"/Users/adam9500/workspace/salus-telemetry-bundle/apps/envoy/data/agents/ORACLE/testdata\"}",
+          "content": "{\"type\":\"oracle_dataguard\",\"databaseNames\":[\"ThisIsATest\"],\"filePath\":\"./testdata/\"}",
           "extraLabels":
             {
               "monitor_id": "19f1044c-9ef5-427c-955f-59deca60f0ff",

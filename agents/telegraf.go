@@ -54,6 +54,8 @@ var (
 	telegrafStartupDuration = 10 * time.Second
 )
 
+
+// Go has a built in templating engine, so this is being used to feed into the above config. I probably dont need this.
 type telegrafMainConfigData struct {
 	IngestHost                string
 	IngestPort                string
@@ -137,6 +139,7 @@ func (tr *TelegrafRunner) serve(listener net.Listener) {
 }
 
 func (tr *TelegrafRunner) SetCommandHandler(handler CommandHandler) {
+	log.Println("TelegrafCommandHandler: ", handler)
 	tr.commandHandler = handler
 }
 
@@ -340,6 +343,7 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 		Errors:        []string{},
 	}
 	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath, timeout)
+
 	log.
 		WithError(err).
 		WithField("correlationId", correlationId).

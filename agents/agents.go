@@ -95,9 +95,22 @@ func init() {
 }
 
 func downloadExtractTarGz(outputPath, url string, exePath string) error {
-
+	log.Println("OUTPUTPATH: ",outputPath)
 	log.WithField("file", url).Debug("downloading agent")
+
+	//determine transport being used
+	//create
+	/*t := &http.Transport{}
+	if strings.HasPrefix(url, "file:") {
+		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+		log.Println("Attempting to register a file Protocol")
+	}
+
+	c := &http.Client{Transport: t}*/
 	resp, err := http.Get(url)
+
+
+	//resp, err := http.Get(url)
 	if err != nil {
 		return errors.Wrap(err, "failed to download agent")
 	}
@@ -121,6 +134,7 @@ func downloadExtractTarGz(outputPath, url string, exePath string) error {
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
+			log.Println("tarReader error")
 			break
 		}
 

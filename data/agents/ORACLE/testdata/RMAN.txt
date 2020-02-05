@@ -1,0 +1,6 @@
+
+there needs to be some text somewhere here RMAN-12345
+this is a log file line
+things are here
+
+more text ORA-123 other text and RMAN-456123
