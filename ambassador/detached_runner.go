@@ -51,7 +51,6 @@ func (r *DetachedRunner) Load(instructionsFilePath string) error {
 	defer instructionsFile.Close()
 
 	var detachedInstructions telemetry_edge.DetachedInstructions
-	log.Println("unmarshalling: ", instructionsFile)
 	err = r.unmarshaler.Unmarshal(instructionsFile, &detachedInstructions)
 	if err != nil {
 		showExampleDetachedInstructions()

@@ -3,8 +3,6 @@ module github.com/racker/salus-telemetry-envoy
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/alecthomas/participle v0.3.0
-	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
-	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/elastic/go-lumber v0.1.0
 	github.com/golang/protobuf v1.3.2
@@ -24,11 +22,10 @@ require (
 	github.com/spf13/afero v1.2.0 // indirect
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
 	google.golang.org/grpc v1.22.0
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
-	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 )

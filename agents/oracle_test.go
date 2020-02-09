@@ -20,10 +20,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/petergtz/pegomock"
-	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-envoy/agents"
+	. "github.com/racker/salus-telemetry-envoy/agents/matchers"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
-	"github.com/racker/telemetry-envoy/agents"
-	. "github.com/racker/telemetry-envoy/agents/matchers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -41,47 +40,61 @@ func TestOracleAgentRunner_ProcessConfig(t *testing.T) {
 	}{
 		{name: "create", ops: []*telemetry_edge.ConfigurationOp{
 			{
-				Id:       "monitor-rpm",
+				Id:       "monitor-rman",
 				Type:     telemetry_edge.ConfigurationOp_CREATE,
-				Content:  `{"type":"packages", "includeRpm":true}`,
+				Content:  `{"type":"oracle_rman","databaseNames":["RMAN"],"filePath":"./testdata", "errorCodeWhitelist": ["RMAN-1234"]}`,
 				Interval: 3600,
 			},
 			{
-				Id:       "monitor-deb",
+				Id:       "monitor-dataguard",
 				Type:     telemetry_edge.ConfigurationOp_CREATE,
-				Content:  `{"type":"packages", "includeDebian":true}`,
+				Content:  `{"type":"oracle_dataguard","databaseNames":["dataguard"],"filePath":"./testdata/"}`,
+				Interval: 3600,
+			},
+			{
+				Id:       "monitor-tablespace",
+				Type:     telemetry_edge.ConfigurationOp_CREATE,
+				Content:  `{"type":"oracle_tablespace","databaseNames":["tablespace"],"filePath":"./testdata/"}`,
 				Interval: 3600,
 			},
 		},
 			expectedContents: []string{
-				`{"include-rpm":true,"interval": "1h0m0s"}`,
-				`{"include-debian":true,"interval":"1h0m0s"}`,
+				`{"type":"oracle_rman","databaseNames":["RMAN"],"filePath":"./testdata", "errorCodeWhitelist": ["RMAN-1234"], "interval": 3600}`,
+				`{"type":"oracle_dataguard","databaseNames":["dataguard"],"filePath":"./testdata/", "interval": 3600}`,
+				`{"type":"oracle_tablespace","databaseNames":["tablespace"],"filePath":"./testdata/", "interval": 3600}`,
 			},
 		},
 		{name: "modify", ops: []*telemetry_edge.ConfigurationOp{
 			{
-				Id:       "monitor-rpm",
+				Id:       "monitor-rman",
 				Type:     telemetry_edge.ConfigurationOp_MODIFY,
-				Content:  `{"type":"packages", "includeRpm":true,"includeDebian":true}`,
+				Content:  `{"type":"oracle_rman","databaseNames":["RMAN"],"filePath":"./testdata", "errorCodeWhitelist":  ["ORA-1234"]}`,
 				Interval: 7200,
 			},
 			{
-				Id:       "monitor-deb",
+				Id:       "monitor-dataguard",
 				Type:     telemetry_edge.ConfigurationOp_MODIFY,
-				Content:  `{"type":"packages", "includeDebian":true,"includeRpm":true}`,
+				Content:  `{"type":"oracle_dataguard","databaseNames":["dataguard", "otherDataguard"],"filePath":"./testdata/"}`,
+				Interval: 7200,
+			},
+			{
+				Id:       "monitor-tablespace",
+				Type:     telemetry_edge.ConfigurationOp_MODIFY,
+				Content:  `{"type":"oracle_tablespace","databaseNames":["tablespace", "otherTablespace"],"filePath":"./testdata/"}`,
 				Interval: 7200,
 			},
 		},
 			expectedContents: []string{
-				`{"include-rpm":true,"include-debian":true,"interval":"2h0m0s"}`,
-				`{"include-debian":true,"include-rpm":true,"interval":"2h0m0s"}`,
+				`{"type":"oracle_rman","databaseNames":["RMAN"],"filePath":"./testdata", "errorCodeWhitelist":  ["ORA-1234"], "interval": 7200}`,
+				`{"type":"oracle_dataguard","databaseNames":["dataguard", "otherDataguard"],"filePath":"./testdata/", "interval": 7200}`,
+				`{"type":"oracle_tablespace","databaseNames":["tablespace", "otherTablespace"],"filePath":"./testdata/", "interval": 7200}`,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dataPath, err := ioutil.TempDir("", "pkgagent_test")
+			dataPath, err := ioutil.TempDir("", "oracleagent_test")
 			require.NoError(t, err)
 			defer os.RemoveAll(dataPath)
 
@@ -98,7 +111,7 @@ func TestOracleAgentRunner_ProcessConfig(t *testing.T) {
 
 			found, err := readFilesIntoMap(dataPath, ".json")
 			require.NoError(t, err)
-			assert.Len(t, found, 2)
+			assert.Len(t, found, 3)
 
 			for i, op := range tt.ops {
 				content, ok := found[fmt.Sprintf("config.d/%s.json", op.Id)]
@@ -111,7 +124,7 @@ func TestOracleAgentRunner_ProcessConfig(t *testing.T) {
 }
 
 func TestOracleAgentRunner_ProcessConfig_remove(t *testing.T) {
-	dataPath, err := ioutil.TempDir("", "pkgagent_test")
+	dataPath, err := ioutil.TempDir("", "oracleagent_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
@@ -122,7 +135,7 @@ func TestOracleAgentRunner_ProcessConfig_remove(t *testing.T) {
 	err = os.MkdirAll(filepath.Join(dataPath, "config.d"), 0755)
 	require.NoError(t, err)
 
-	err = ioutil.WriteFile(filepath.Join(dataPath, "config.d", "monitor-rpm.json"), []byte(`{}`), 0644)
+	err = ioutil.WriteFile(filepath.Join(dataPath, "config.d", "monitor-rman.json"), []byte(`{}`), 0644)
 	require.NoError(t, err)
 
 	// sanity check the "config file" above landed in the config area validated below
@@ -134,7 +147,7 @@ func TestOracleAgentRunner_ProcessConfig_remove(t *testing.T) {
 		AgentType: telemetry_edge.AgentType_ORACLE,
 		Operations: []*telemetry_edge.ConfigurationOp{
 			{
-				Id:   "monitor-rpm",
+				Id:   "monitor-rman",
 				Type: telemetry_edge.ConfigurationOp_REMOVE,
 			},
 		},
@@ -156,17 +169,16 @@ func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 		AnyContextContext(),
 		AnyTelemetryEdgeAgentType(),
 		pegomock.AnyString(), pegomock.AnyString(),
-		pegomock.AnyString(), pegomock.AnyString(), // args
-		pegomock.AnyString(), pegomock.AnyString(), // more args
 	)).ThenReturn(runningContext)
 
-	dataPath, err := ioutil.TempDir("", "pkgagent_test")
+	dataPath, err := ioutil.TempDir("", "oracleagent_test")
 	require.NoError(t, err)
 	defer os.RemoveAll(dataPath)
 
 	runner := &agents.OracleRunner{}
 	runner.SetCommandHandler(commandHandler)
-	config.RegisterListenerAddress(config.LineProtocolListener, "localhost:8899")
+	// this isn't right...
+	//config.RegisterListenerAddress(config.LineProtocolListener, "localhost:8899")
 	err = runner.Load(dataPath)
 	require.NoError(t, err)
 
@@ -174,9 +186,9 @@ func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 		AgentType: telemetry_edge.AgentType_ORACLE,
 		Operations: []*telemetry_edge.ConfigurationOp{
 			{
-				Id:       "monitor-rpm",
+				Id:       "monitor-dataguard",
 				Type:     telemetry_edge.ConfigurationOp_CREATE,
-				Content:  `{"type":"packages", "includeRpm":true}`,
+				Content:  `{"type":"oracle_dataguard","databaseNames":["dataguard"],"filePath":"./testdata/"}`,
 				Interval: 3600,
 			}},
 	}
@@ -199,25 +211,21 @@ func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 	runner.EnsureRunningState(ctx, true)
 
 	// called at steps 1 and 3
-	commandHandler.VerifyWasCalled(pegomock.Times(2)).
+	commandHandler.VerifyWasCalled(pegomock.Times(2)). //should actually be 2
 		CreateContext(AnyContextContext(),
 			EqTelemetryEdgeAgentType(telemetry_edge.AgentType_ORACLE),
 			pegomock.EqString("CURRENT/bin/salus-oracle-agent"),
-			pegomock.EqString(dataPath),
-			pegomock.EqString("--configs"),
-			pegomock.EqString("config.d"),
-			pegomock.EqString("--line-protocol-to-socket"),
-			pegomock.EqString("localhost:8899"))
+			pegomock.EqString(dataPath))
 
 	// called at steps 1 and 3
 	commandHandler.VerifyWasCalled(pegomock.Times(2)).
 		StartAgentCommand(AnyPtrToAgentsAgentRunningContext(),
 			EqTelemetryEdgeAgentType(telemetry_edge.AgentType_ORACLE),
-			pegomock.EqString(""),
+			pegomock.EqString("Succeeded in reconnecting to Envoy"),
 			AnyTimeDuration())
 
 	// called at steps 1 and 3
-	commandHandler.VerifyWasCalledEventually(pegomock.Times(2), 1*time.Second).
+	commandHandler.VerifyWasCalledEventually(pegomock.Times(2), 10*time.Second).
 		WaitOnAgentCommand(AnyContextContext(),
 			EqAgentsSpecificAgentRunner(runner),
 			EqPtrToAgentsAgentRunningContext(runningContext))
@@ -230,65 +238,13 @@ func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 func TestOracleAgentRunner_ProcessTestMonitor(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
-	content := []byte(`Some kind of logging line to ignore
-> packages,system=debian,package=sensible-utils,arch=all version="0.0.12" 1579042018775063900
-> packages,system=debian,package=sysvinit-utils,arch=amd64 version="2.88dsf-59.10ubuntu1" 1579042018775063900
-`)
-
 	commandHandler := NewMockCommandHandler()
-	pegomock.When(
-		commandHandler.RunToCompletion(AnyContextContext(),
-			pegomock.AnyString(), pegomock.AnyString(), // exe and basePath
-			pegomock.AnyString(),                       // arg to console
-			pegomock.AnyString(), pegomock.AnyString(), // arg include rpm
-			pegomock.AnyString(), pegomock.AnyString(), // arg include debian
-		),
-	).
-		ThenReturn(content, nil)
+
 
 	runner := &agents.OracleRunner{}
 	runner.SetCommandHandler(commandHandler)
 
-	results, err := runner.ProcessTestMonitor("request-1", `{"include-debian":true}`, 60*time.Second)
-	require.NoError(t, err)
+	_, err := runner.ProcessTestMonitor("request-1", `{"include-debian":true}`, 60*time.Second)
+	require.Error(t, err, "Test monitor not supported by oracle agent")
 
-	require.NotNil(t, results)
-	assert.Equal(t, "request-1", results.CorrelationId)
-	assert.Empty(t, results.Errors)
-	assert.Len(t, results.Metrics, 2)
-
-	metric := results.Metrics[0].GetNameTagValue()
-	assert.Equal(t, "packages", metric.Name)
-	assert.Equal(t, int64(1579042018775), metric.Timestamp)
-	assert.Equal(t, map[string]string{
-		"system":  "debian",
-		"package": "sensible-utils",
-		"arch":    "all",
-	}, metric.Tags)
-	assert.Equal(t, map[string]string{
-		"version": "0.0.12",
-	}, metric.Svalues)
-
-	metric = results.Metrics[1].GetNameTagValue()
-	assert.Equal(t, "packages", metric.Name)
-	assert.Equal(t, int64(1579042018775), metric.Timestamp)
-	assert.Equal(t, map[string]string{
-		"system":  "debian",
-		"package": "sysvinit-utils",
-		"arch":    "amd64",
-	}, metric.Tags)
-	assert.Equal(t, map[string]string{
-		"version": "2.88dsf-59.10ubuntu1",
-	}, metric.Svalues)
-
-	commandHandler.VerifyWasCalledOnce().
-		RunToCompletion(AnyContextContext(),
-			pegomock.EqString("CURRENT/bin/salus-oracle-agent"),
-			pegomock.AnyString(),
-			pegomock.EqString("--line-protocol-to-console"),
-			pegomock.EqString("--include-rpm"),
-			pegomock.EqString("false"),
-			pegomock.EqString("--include-debian"),
-			pegomock.EqString("true"),
-		)
 }
