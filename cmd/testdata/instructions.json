@@ -3,28 +3,25 @@
     {
       "install": {
         "agent": {
-          "version": "0.1",
-          "type": "ORACLE"
+          "version": "1.11",
+          "type": "TELEGRAF"
         },
-        "url": "https://github.com/racker/salus-oracle-agent/releases/download/0.1/salus-oracle-agent_0.1_Darwin_x86_64.tar.gz",
-        "exe": "oracle/0.1/bin/salus-oracle-agent"
+        "url": "https://homebrew.bintray.com/bottles/telegraf-1.11.0.high_sierra.bottle.tar.gz",
+        "exe": "telegraf/1.11.0/bin/telegraf"
       }
     },
     {
       "configure": {
-        "agentType": "ORACLE",
-        "operations": [{
-          "id": "aaaaaa_19f1044c-9ef5-427c-955f-59deca60f0ff_development:0",
-          "revision": "revision",
-          "type": 0,
-          "content": "{\"type\":\"oracle_tablespace\",\"databaseNames\":[\"tablespace\"],\"filePath\":\"/Users/adam9500/workspace/salus-telemetry-bundle/apps/envoy/data/agents/ORACLE/testdata\"}",
-          "extraLabels":
-            {
-              "monitor_id": "19f1044c-9ef5-427c-955f-59deca60f0ff",
-              "monitor_type": "oracle_dataguard"
+        "operations": [
+          {
+            "id": "monitor-1",
+            "content": "{\"type\": \"cpu\"}",
+            "extraLabels": {
+              "detached": "true"
             },
-          "interval": 30
-        }]
+            "interval": "10"
+          }
+        ]
       }
     }
   ]
