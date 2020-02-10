@@ -30,6 +30,4 @@ require (
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 )
 
-replace github.com/racker/salus-telemetry-protocol => ../../libs/protocol
-
 go 1.13

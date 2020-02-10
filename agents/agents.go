@@ -99,9 +99,9 @@ func init() {
 }
 
 func downloadExtractTarGz(outputPath, url string, exePath string) error {
+
 	log.WithField("file", url).Debug("downloading agent")
 	resp, err := http.Get(url)
-
 	if err != nil {
 		return errors.Wrap(err, "failed to download agent")
 	}

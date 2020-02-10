@@ -55,6 +55,7 @@ func NewAgentsRunner(detachChan <-chan struct{}) (Router, error) {
 	for agentType, runner := range specificAgentRunners {
 
 		agentBasePath := filepath.Join(ar.DataPath, agentsSubpath, agentType.String())
+
 		runner.SetCommandHandler(commandHandler)
 		err := runner.Load(agentBasePath)
 		if err != nil {
