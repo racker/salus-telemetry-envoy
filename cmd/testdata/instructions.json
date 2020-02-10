@@ -3,8 +3,8 @@
     {
       "install": {
         "agent": {
-          "version": "1.11",
-          "type": "TELEGRAF"
+          "type": "TELEGRAF",
+          "version": "1.11.0"
         },
         "url": "https://homebrew.bintray.com/bottles/telegraf-1.11.0.high_sierra.bottle.tar.gz",
         "exe": "telegraf/1.11.0/bin/telegraf"
@@ -12,6 +12,7 @@
     },
     {
       "configure": {
+        "agentType": "TELEGRAF",
         "operations": [
           {
             "id": "monitor-1",
