@@ -212,7 +212,7 @@ func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 	runner.EnsureRunningState(ctx, true)
 
 	// called at steps 1 and 3
-	commandHandler.VerifyWasCalled(pegomock.Times(2)). //should actually be 2
+	commandHandler.VerifyWasCalled(pegomock.Times(2)).
 		CreateContext(AnyContextContext(),
 			EqTelemetryEdgeAgentType(telemetry_edge.AgentType_ORACLE),
 			pegomock.EqString("CURRENT/bin/salus-oracle-agent"),

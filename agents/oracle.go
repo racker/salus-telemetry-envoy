@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var (
+const (
 	oracleStartupDuration = 60 * time.Second
 )
 
@@ -25,7 +25,6 @@ type OracleRunner struct {
 type OracleConfig struct {
 	interval		int64
 	content 		string
-	jsonData		*json.RawMessage
 }
 
 
@@ -48,7 +47,7 @@ func (o *OracleRunner) EnsureRunningState(ctx context.Context, applyConfigs bool
 
 	if o.running.IsRunning() {
 
-		// package agent requires a restart to pick up new configurations
+		// oracle agent requires a restart to pick up new configurations
 		if applyConfigs {
 			o.Stop()
 			// ...and fall through to let it start back up again
@@ -72,6 +71,7 @@ func (o *OracleRunner) EnsureRunningState(ctx context.Context, applyConfigs bool
 	go o.commandHandler.WaitOnAgentCommand(ctx, o, runningContext)
 
 	o.running = runningContext
+	log.Info("started oracle agent")
 }
 
 func (o *OracleRunner) PostInstall() error {
@@ -100,7 +100,7 @@ func (o *OracleRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionC
 			// (re)create file
 			err := o.writeConfigFile(configInstancePath, op)
 			if err != nil {
-				return fmt.Errorf("failed to process package agent config file: %w", err)
+				return fmt.Errorf("failed to process oracle agent config file: %w", err)
 			} else {
 				applied++
 			}
@@ -109,7 +109,7 @@ func (o *OracleRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionC
 			err := os.Remove(configInstancePath)
 			if err != nil {
 				if !os.IsNotExist(err) {
-					return fmt.Errorf("failed to remove package agent config file: %w", err)
+					return fmt.Errorf("failed to remove oracle agent config file: %w", err)
 				}
 			} else {
 				applied++
@@ -158,9 +158,5 @@ func (o *OracleRunner) Stop() {
 	o.commandHandler.Stop(o.running)
 	o.running = nil
 
-}
-
-func (o *OracleRunner) exePath() string {
-	return filepath.Join(currentVerLink, binSubpath)
 }
 
