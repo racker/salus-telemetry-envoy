@@ -55,7 +55,6 @@ func NewAgentsRunner(detachChan <-chan struct{}) (Router, error) {
 	for agentType, runner := range specificAgentRunners {
 
 		agentBasePath := filepath.Join(ar.DataPath, agentsSubpath, agentType.String())
-		log.Println("NewAgentsRunner: ",commandHandler)
 		runner.SetCommandHandler(commandHandler)
 		err := runner.Load(agentBasePath)
 		if err != nil {
@@ -117,9 +116,7 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 	if err != nil {
 		abs = outputPath
 	}
-	log.Println("seeing if file exists")
 	if !fileExists(outputPath) {
-		log.Println("file doesnt exist")
 		err := os.MkdirAll(outputPath, dirPerms)
 		if err != nil {
 			log.WithError(err).WithField("path", outputPath).Error("unable to mkdirs")

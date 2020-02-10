@@ -169,6 +169,7 @@ func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 		AnyContextContext(),
 		AnyTelemetryEdgeAgentType(),
 		pegomock.AnyString(), pegomock.AnyString(),
+		pegomock.AnyString(), pegomock.AnyString(),
 	)).ThenReturn(runningContext)
 
 	dataPath, err := ioutil.TempDir("", "oracleagent_test")
@@ -215,7 +216,8 @@ func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
 		CreateContext(AnyContextContext(),
 			EqTelemetryEdgeAgentType(telemetry_edge.AgentType_ORACLE),
 			pegomock.EqString("CURRENT/bin/salus-oracle-agent"),
-			pegomock.EqString(dataPath))
+			pegomock.EqString(dataPath),
+			pegomock.AnyString(), pegomock.AnyString())
 
 	// called at steps 1 and 3
 	commandHandler.VerifyWasCalled(pegomock.Times(2)).

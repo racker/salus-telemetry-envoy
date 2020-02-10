@@ -43,7 +43,6 @@ func NewDetachedRunner(agentsRouter agents.Router) *DetachedRunner {
 }
 
 func (r *DetachedRunner) Load(instructionsFilePath string) error {
-	log.Println("hitting the Load call")
 	instructionsFile, err := os.Open(instructionsFilePath)
 	if err != nil {
 		return errors.Wrap(err, "Unable to open instructions file")
@@ -68,7 +67,6 @@ func (r *DetachedRunner) Load(instructionsFilePath string) error {
 		if instruction.GetInstall() != nil {
 			r.agentsRouter.ProcessInstall(instruction.GetInstall())
 		} else if instruction.GetConfigure() != nil {
-			log.Println("ProcessConfigure")
 			r.agentsRouter.ProcessConfigure(instruction.GetConfigure())
 		} else {
 			log.WithField("instruction", instruction).Warn("Unexpected instruction type")

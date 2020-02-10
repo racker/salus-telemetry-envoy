@@ -59,7 +59,8 @@ func (o *OracleRunner) EnsureRunningState(ctx context.Context, applyConfigs bool
 	}
 	runningContext := o.commandHandler.CreateContext(ctx,
 		telemetry_edge.AgentType_ORACLE,
-		buildRelativeExePath("salus-oracle-agent"), o.basePath)
+		buildRelativeExePath("salus-oracle-agent"), o.basePath,
+		"-configs", configsDirSubpath)
 
 	err := o.commandHandler.StartAgentCommand(runningContext,
 		telemetry_edge.AgentType_ORACLE,
@@ -74,7 +75,6 @@ func (o *OracleRunner) EnsureRunningState(ctx context.Context, applyConfigs bool
 }
 
 func (o *OracleRunner) PostInstall() error {
-	log.Println("Oracle Agent PostInstall stub")
 	return nil
 }
 
@@ -140,8 +140,6 @@ func (o *OracleRunner) writeConfigFile(path string, op *telemetry_edge.Configura
 		return err
 	}
 	defer outFile.Close()
-
-	//configMap = normalizeKeysToKebabCase(configMap)
 
 	encoder := json.NewEncoder(outFile)
 	err = encoder.Encode(configMap)
