@@ -160,7 +160,7 @@ func TestOracleAgentRunner_ProcessConfig_remove(t *testing.T) {
 	assert.Len(t, found, 0)
 }
 
-func TestOracleAgentRunner_EnsureRunningState_noApplyConfigs(t *testing.T) {
+func TestOracleAgentRunner_EnsureRunningState_ApplyConfigsParameter(t *testing.T) {
 	pegomock.RegisterMockTestingT(t)
 
 	commandHandler := NewMockCommandHandler()

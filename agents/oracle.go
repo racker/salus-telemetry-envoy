@@ -46,7 +46,6 @@ func (o *OracleRunner) SetCommandHandler(handler CommandHandler) {
 func (o *OracleRunner) EnsureRunningState(ctx context.Context, applyConfigs bool) {
 
 	if o.running.IsRunning() {
-
 		// oracle agent requires a restart to pick up new configurations
 		if applyConfigs {
 			o.Stop()
