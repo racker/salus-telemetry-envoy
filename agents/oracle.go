@@ -59,8 +59,10 @@ func (o *OracleRunner) EnsureRunningState(ctx context.Context, applyConfigs bool
 		// oracle agent requires a restart to pick up new configurations
 		if applyConfigs {
 			o.Stop()
+			log.Info("Oracle agent requires a restart to pick up new configurations")
 			// ...and fall through to let it start back up again
 		} else {
+			log.Debug("Oracle agent already running with no new configs to apply")
 			// was already running and no configs to apply
 			return
 		}
