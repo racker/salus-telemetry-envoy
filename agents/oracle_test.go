@@ -178,8 +178,7 @@ func TestOracleAgentRunner_EnsureRunningState_ApplyConfigsParameter(t *testing.T
 
 	runner := &agents.OracleRunner{}
 	runner.SetCommandHandler(commandHandler)
-	// this isn't right...
-	//config.RegisterListenerAddress(config.LineProtocolListener, "localhost:8899")
+
 	err = runner.Load(dataPath)
 	require.NoError(t, err)
 
