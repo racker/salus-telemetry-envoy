@@ -38,12 +38,6 @@ type OracleRunner struct {
 	commandHandler      CommandHandler
 }
 
-type OracleConfig struct {
-	interval		int64
-	content 		string
-}
-
-
 func init() {
 	registerSpecificAgentRunner(telemetry_edge.AgentType_ORACLE, &OracleRunner{})
 }
