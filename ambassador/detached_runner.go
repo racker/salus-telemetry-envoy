@@ -43,7 +43,6 @@ func NewDetachedRunner(agentsRouter agents.Router) *DetachedRunner {
 }
 
 func (r *DetachedRunner) Load(instructionsFilePath string) error {
-
 	instructionsFile, err := os.Open(instructionsFilePath)
 	if err != nil {
 		return errors.Wrap(err, "Unable to open instructions file")
@@ -55,7 +54,7 @@ func (r *DetachedRunner) Load(instructionsFilePath string) error {
 	if err != nil {
 		showExampleDetachedInstructions()
 
-		return errors.Wrap(err, "Unable to umarshal instructions")
+		return errors.Wrap(err, "Unable to unmarshal instructions")
 	}
 
 	if len(detachedInstructions.GetInstructions()) == 0 {
