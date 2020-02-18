@@ -161,10 +161,11 @@ the scenario currently running on your system.
 
 Envoy includes a sub-command called `detached` that can be used to test the Envoy's agent download and configuration mechanism without connecting to an Ambassador. 
 
-The sub-command replaces the support of the Ambassador with two mechanisms:
+The sub-command replaces the support of the Ambassador with the following mechanisms:
 
 - Ingested telemetry (metrics and logs) is encoded to JSON and output to stdout
 - Agent installation and configuration instructions are loaded from a JSON file
+- Test-Monitor instructions are executed, but the results are output as an info-level log
 
 The instructions file must be structured for unmarshaling into the `DetachedInstructions` protobuf message, declared in the Telemetry Edge protocol. [This example file](cmd/testdata/instructions.json) installs an instance of telegraf and configures a CPU monitor.
 
