@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/pkg/errors"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/agents"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"os"
 )
@@ -68,6 +68,9 @@ func (r *DetachedRunner) Load(instructionsFilePath string) error {
 			r.agentsRouter.ProcessInstall(instruction.GetInstall())
 		} else if instruction.GetConfigure() != nil {
 			r.agentsRouter.ProcessConfigure(instruction.GetConfigure())
+		} else if instruction.GetTestMonitor() != nil {
+			results := r.agentsRouter.ProcessTestMonitor(instruction.GetTestMonitor())
+			log.WithField("results", results).Info("processed detached test-monitor")
 		} else {
 			log.WithField("instruction", instruction).Warn("Unexpected instruction type")
 		}
