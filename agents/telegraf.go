@@ -344,19 +344,19 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 			exitErrMessage := err.Error()
 			// checking error's message is portable and easy way to determine if the exec timeout was exceeded
 			if exitErrMessage == "signal: killed" {
-				results.Errors = append(results.Errors, "Command: took too long to run")
+				results.Errors = append(results.Errors, "Command took too long to run")
 			} else {
-				results.Errors = append(results.Errors, "Command: "+err.Error())
+				results.Errors = append(results.Errors, "Command failed: "+err.Error())
 			}
-			results.Errors = append(results.Errors, "CommandStderr: "+string(exitErr.Stderr))
+			results.Errors = append(results.Errors, "Command failed with error output: "+string(exitErr.Stderr))
 		} else {
-			results.Errors = append(results.Errors, "Command: "+err.Error())
+			results.Errors = append(results.Errors, "Command failed: "+err.Error())
 		}
 	} else {
 		// ... and process output
 		parsedMetrics, err := lineproto.ParseInfluxLineProtocolMetrics(cmdOut)
 		if err != nil {
-			results.Errors = append(results.Errors, "Parse: "+err.Error())
+			results.Errors = append(results.Errors, "Failed to parse telegraf output: "+err.Error())
 		} else {
 			// Wrap up the named tag-value metrics into the general metrics type
 			results.Metrics = make([]*telemetry_edge.Metric, len(parsedMetrics))
