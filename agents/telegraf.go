@@ -55,6 +55,11 @@ var (
 	telegrafStartupDuration = 10 * time.Second
 )
 
+const (
+	telegrafMaxTestMonitorRetries = 3
+	telegrafTestMonitorRetryDelay = 500 * time.Millisecond
+)
+
 type telegrafMainConfigData struct {
 	IngestAddress             string
 	DefaultMonitoringInterval time.Duration
@@ -325,13 +330,24 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 
 	configServer := testConfigRunner.StartTestConfigServer(configToml, configServerErrors, listener)
 
-	// Rung the telegraf test command
+	// Run the telegraf test command
 
 	results := &telemetry_edge.TestMonitorResults{
 		CorrelationId: correlationId,
 		Errors:        []string{},
 	}
-	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath, timeout)
+
+	// Sometimes telegraf --test completes with empty output and no error indicated,
+	// so retry a few times. If that still fails, then a parse error will be produced as without retrying.
+	var cmdOut []byte
+	for attempt := 0; attempt < telegrafMaxTestMonitorRetries; attempt++ {
+		cmdOut, err = testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath, timeout)
+		if len(cmdOut) != 0 {
+			break
+		}
+		// wait just a bit between each try
+		time.Sleep(telegrafTestMonitorRetryDelay)
+	}
 	log.
 		WithError(err).
 		WithField("correlationId", correlationId).
