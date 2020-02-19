@@ -55,6 +55,11 @@ var (
 	telegrafStartupDuration = 10 * time.Second
 )
 
+const (
+	telegrafMaxTestMonitorRetries = 3
+	telegrafTestMonitorRetryDelay = 500 * time.Millisecond
+)
+
 type telegrafMainConfigData struct {
 	IngestAddress             string
 	DefaultMonitoringInterval time.Duration
@@ -325,13 +330,24 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 
 	configServer := testConfigRunner.StartTestConfigServer(configToml, configServerErrors, listener)
 
-	// Rung the telegraf test command
+	// Run the telegraf test command
 
 	results := &telemetry_edge.TestMonitorResults{
 		CorrelationId: correlationId,
 		Errors:        []string{},
 	}
-	cmdOut, err := testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath, timeout)
+
+	// Sometimes telegraf --test completes with empty output and no error indicated,
+	// so retry a few times. If that still fails, then a parse error will be produced as without retrying.
+	var cmdOut []byte
+	for attempt := 0; attempt < telegrafMaxTestMonitorRetries; attempt++ {
+		cmdOut, err = testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath, timeout)
+		if err != nil || len(cmdOut) != 0 {
+			break
+		}
+		// wait just a bit between each try
+		time.Sleep(telegrafTestMonitorRetryDelay)
+	}
 	log.
 		WithError(err).
 		WithField("correlationId", correlationId).
@@ -344,19 +360,19 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 			exitErrMessage := err.Error()
 			// checking error's message is portable and easy way to determine if the exec timeout was exceeded
 			if exitErrMessage == "signal: killed" {
-				results.Errors = append(results.Errors, "Command: took too long to run")
+				results.Errors = append(results.Errors, "Command took too long to run")
 			} else {
-				results.Errors = append(results.Errors, "Command: "+err.Error())
+				results.Errors = append(results.Errors, "Command failed: "+err.Error())
 			}
-			results.Errors = append(results.Errors, "CommandStderr: "+string(exitErr.Stderr))
+			results.Errors = append(results.Errors, "Command failed with error output: "+string(exitErr.Stderr))
 		} else {
-			results.Errors = append(results.Errors, "Command: "+err.Error())
+			results.Errors = append(results.Errors, "Command failed: "+err.Error())
 		}
 	} else {
 		// ... and process output
 		parsedMetrics, err := lineproto.ParseInfluxLineProtocolMetrics(cmdOut)
 		if err != nil {
-			results.Errors = append(results.Errors, "Parse: "+err.Error())
+			results.Errors = append(results.Errors, "Failed to parse telegraf output: "+err.Error())
 		} else {
 			// Wrap up the named tag-value metrics into the general metrics type
 			results.Metrics = make([]*telemetry_edge.Metric, len(parsedMetrics))

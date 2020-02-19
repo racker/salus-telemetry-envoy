@@ -1,0 +1,12 @@
+{
+  "instructions": [
+    {
+      "testMonitor": {
+        "agentType": "TELEGRAF",
+        "content": "{\"type\": \"cpu\",\"percpu\":false,\"totalcpu\":true,\"collectCpuTime\":false,\"reportActive\":false}",
+        "timeout": 30,
+        "correlationId": "detached-123"
+      }
+    }
+  ]
+}
