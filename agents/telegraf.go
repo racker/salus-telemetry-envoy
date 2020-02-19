@@ -342,7 +342,7 @@ func (tr *TelegrafRunner) ProcessTestMonitor(correlationId string, content strin
 	var cmdOut []byte
 	for attempt := 0; attempt < telegrafMaxTestMonitorRetries; attempt++ {
 		cmdOut, err = testConfigRunner.RunCommand(hostPort, tr.exePath(), tr.basePath, timeout)
-		if len(cmdOut) != 0 {
+		if err != nil || len(cmdOut) != 0 {
 			break
 		}
 		// wait just a bit between each try

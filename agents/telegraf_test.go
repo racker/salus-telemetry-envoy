@@ -392,8 +392,8 @@ func TestTelegrafRunner_ProcessTestMonitor_Errors(t *testing.T) {
 	assert.Empty(t, results.GetMetrics())
 	assert.NotEmpty(t, results.GetErrors())
 	assert.Equal(t, []string{
-		"Command: exit status 0",
-		"CommandStderr: simulating stderr",
+		"Command failed: exit status 0",
+		"Command failed with error output: simulating stderr",
 		"ConfigServer: simulated config server error",
 	}, results.GetErrors())
 
@@ -405,6 +405,57 @@ func TestTelegrafRunner_ProcessTestMonitor_Errors(t *testing.T) {
 	assert.NotNil(t, listener)
 
 	hostPort, exe, basePath, _ := tcr.VerifyWasCalledOnce().
+		RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString(), matchers.AnyTimeDuration()).
+		GetCapturedArguments()
+	assert.Contains(t, hostPort, "127.0.0.1:")
+	assert.Equal(t, exe, "CURRENT/bin/telegraf")
+	// empty value expected since runner's full config purposely wasn't loaded
+	assert.Equal(t, basePath, "")
+
+	stubConfigServer.VerifyWasCalledOnce().
+		Close()
+}
+
+func TestTelegrafRunner_ProcessTestMonitor_SuccessButEmpty(t *testing.T) {
+	pegomock.RegisterMockTestingT(t)
+
+	tcr := NewMockTelegrafTestConfigRunner()
+	agents.RegisterTelegrafTestConfigRunnerBuilder(func(testConfigServerId string, testConfigServerToken string) agents.TelegrafTestConfigRunner {
+		assert.NotEmpty(t, testConfigServerId)
+		assert.NotEmpty(t, testConfigServerToken)
+		return tcr
+	})
+
+	stubConfigServer := NewMockCloser()
+	pegomock.When(
+		tcr.StartTestConfigServer(matchers.AnySliceOfByte(), matchers.AnyChanOfError(), matchers.AnyNetListener())).
+		ThenReturn(stubConfigServer)
+
+	pegomock.When(
+		tcr.RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString(), matchers.AnyTimeDuration())).
+		ThenReturn([]byte{}, nil)
+
+	telegrafRunner := &agents.TelegrafRunner{}
+	results, err := telegrafRunner.ProcessTestMonitor("correlation-1",
+		`{"type":"cpu"}`, 3*time.Second)
+	require.NoError(t, err)
+
+	require.NotNil(t, results)
+	assert.Equal(t, "correlation-1", results.GetCorrelationId())
+	assert.Empty(t, results.GetMetrics())
+	assert.NotEmpty(t, results.GetErrors())
+	assert.Equal(t, []string{
+		"Failed to parse telegraf output: <source>:0:0: unexpected \"<EOF>\" (expected <string> ...)",
+	}, results.GetErrors())
+
+	configToml, _, listener := tcr.VerifyWasCalledOnce().
+		StartTestConfigServer(matchers.AnySliceOfByte(), matchers.AnyChanOfError(), matchers.AnyNetListener()).
+		GetCapturedArguments()
+
+	assert.Equal(t, "[inputs]\n\n  [[inputs.cpu]]\n", string(configToml))
+	assert.NotNil(t, listener)
+
+	hostPort, exe, basePath, _ := tcr.VerifyWasCalled(pegomock.Times(3)).
 		RunCommand(pegomock.AnyString(), pegomock.AnyString(), pegomock.AnyString(), matchers.AnyTimeDuration()).
 		GetCapturedArguments()
 	assert.Contains(t, hostPort, "127.0.0.1:")

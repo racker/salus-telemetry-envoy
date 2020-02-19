@@ -1,16 +1,6 @@
 {
   "instructions": [
     {
-      "install": {
-        "agent": {
-          "type": "TELEGRAF",
-          "version": "1.13.2"
-        },
-        "url": "https://homebrew.bintray.com/bottles/telegraf-1.13.2.mojave.bottle.tar.gz",
-        "exe": "telegraf/1.13.2/bin/telegraf"
-      }
-    },
-    {
       "testMonitor": {
         "agentType": "TELEGRAF",
         "content": "{\"type\": \"cpu\",\"percpu\":false,\"totalcpu\":true,\"collectCpuTime\":false,\"reportActive\":false}",
