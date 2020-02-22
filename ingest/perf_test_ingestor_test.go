@@ -79,5 +79,5 @@ func TestPerfTestIngestor(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 	body, err := ioutil.ReadAll(resp.Body)
 	require.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d", metricsPerMinute, floatsPerMetric), string(body))
+	assert.Equal(t, fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d\n", metricsPerMinute, floatsPerMetric), string(body))
 }

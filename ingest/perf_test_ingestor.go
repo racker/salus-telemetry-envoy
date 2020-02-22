@@ -43,12 +43,19 @@ func init() {
 }
 
 func (p *PerfTestIngestor) Bind() error {
+	log.Infof("gbjinfo: %d\n", viper.GetInt(config.PerfTestPort))
 	if viper.GetInt(config.PerfTestPort) == 0 {
 		return nil
 	}
-	log.Info("entering perfTest mode")
-	p.metricsPerMinute = 60
-	p.floatsPerMetric = 10
+	if viper.GetInt(config.PerfTestMetricsPerMinute) == 0 {
+		p.metricsPerMinute = 60
+		p.floatsPerMetric = 10
+	} else {
+		p.metricsPerMinute = viper.GetInt(config.PerfTestMetricsPerMinute)
+		p.floatsPerMetric = viper.GetInt(config.PerfTestFloatsPerMetric)
+	}
+	log.Infof("entering perfTest mode.  metricsPerMinute %d, floatsPerMetric %d\n",
+		p.metricsPerMinute, p.floatsPerMetric)
 	p.newRateC = make(chan int)
 	return nil
 }
@@ -125,8 +132,10 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("metricsPerMinute or floatsPerMetric parameter required"))
 		return
 	}
-	_, _ = w.Write([]byte(fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d",
-		metricsCount, p.floatsPerMetric)))
+	output := fmt.Sprintf("metricsPerMinute set to %d, floatsPerMetric set to %d\n",
+		metricsCount, p.floatsPerMetric)
+	log.Infof(output)
+	_, _ = w.Write([]byte(output))
 	return
 }
 
