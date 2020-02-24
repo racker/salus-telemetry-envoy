@@ -43,7 +43,6 @@ func init() {
 }
 
 func (p *PerfTestIngestor) Bind() error {
-	log.Infof("gbjinfo: %d\n", viper.GetInt(config.PerfTestPort))
 	if viper.GetInt(config.PerfTestPort) == 0 {
 		return nil
 	}
