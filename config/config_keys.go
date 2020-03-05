@@ -34,7 +34,7 @@ const (
 	Zone                            = "zone"
 	PerfTestPort                    = "perfTest.port"
 	PerfTestMetricsPerMinute        = "perfTest.metricsPerMinute"
-	PerfTestFloatsPerMetric         = "perfTest.metricsPerMetric"
+	PerfTestFloatsPerMetric         = "perfTest.floatsPerMetric"
 
 	DefaultAgentsDataPath                  = "/var/lib/telemetry-envoy"
 	DefaultAgentsTestMonitorTimeout        = 30 * time.Second
