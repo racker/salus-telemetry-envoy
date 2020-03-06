@@ -1,13 +1,6 @@
-FROM golang:1.13 as builder
 
-WORKDIR /build
-COPY go.mod go.sum ./
-RUN go mod download
 
-COPY . .
-RUN CGO_ENABLED=0 go build -o telemetry-envoy .
-
-FROM scratch
-
-COPY --from=builder /build/telemetry-envoy /telemetry-envoy
+FROM alpine:latest
+RUN apk --update add ca-certificates
+COPY telemetry-envoy /
 ENTRYPOINT ["/telemetry-envoy"]

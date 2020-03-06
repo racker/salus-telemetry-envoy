@@ -3,6 +3,8 @@ steps:
   # Create github release.
   - name: goreleaser/goreleaser
     entrypoint: /bin/sh
+    env:
+      - 'IMAGE_PREFIX=gcr.io/$PROJECT_ID/'
     dir: /workspace
     args: ['-c', 'git tag $TAG_NAME && goreleaser' ]
     secretEnv: ['GITHUB_TOKEN']
