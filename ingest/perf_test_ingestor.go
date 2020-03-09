@@ -139,6 +139,9 @@ func (p *PerfTestIngestor) handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *PerfTestIngestor) processMetric() {
+	if !p.egressConn.IsAttached() {
+		return
+	}
 	fvalues := make(map[string]float64)
 	svalues := make(map[string]string)
 	tags := make(map[string]string)
