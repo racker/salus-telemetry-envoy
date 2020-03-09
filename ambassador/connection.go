@@ -270,6 +270,7 @@ func (c *StandardEgressConnection) attach() error {
 			cancelFunc()
 		}
 	}
+	c.attached = false
 }
 
 func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
