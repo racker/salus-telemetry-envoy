@@ -275,6 +275,7 @@ func (c *StandardEgressConnection) attach() error {
 
 func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
 	if !c.attached {
+		log.Debug("not posting log event to unattached connection.")
 		return
 	}
 	callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
@@ -292,6 +293,7 @@ func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentTy
 
 func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 	if !c.attached {
+		log.Debug("not posting metric event to unattached connection.")
 		return
 	}
 	callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
