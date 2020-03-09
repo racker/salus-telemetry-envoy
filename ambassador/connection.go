@@ -257,6 +257,7 @@ func (c *StandardEgressConnection) attach() error {
 	for {
 		select {
 		case <-outgoingCtx.Done():
+			c.attached = false
 			log.Debug("closing attach receiver stream")
 			err := instructions.CloseSend()
 			if err != nil {
@@ -265,12 +266,12 @@ func (c *StandardEgressConnection) attach() error {
 			return errors.New("closed")
 
 		case err := <-errChan:
+			c.attached = false
 			log.WithError(err).Warn("terminating connection due to error")
 			c.detachChan <- struct{}{}
 			cancelFunc()
 		}
 	}
-	c.attached = false
 }
 
 func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
