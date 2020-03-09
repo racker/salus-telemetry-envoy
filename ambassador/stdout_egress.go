@@ -65,3 +65,7 @@ func (e *stdoutEgressConnection) PostTestMonitorResults(results *telemetry_edge.
 
 	fmt.Println(content)
 }
+
+func (e *stdoutEgressConnection) IsAttached() bool {
+	return true
+}

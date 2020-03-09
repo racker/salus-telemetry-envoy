@@ -21,10 +21,10 @@ import (
 	"crypto/tls"
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/agents"
 	"github.com/racker/salus-telemetry-envoy/auth"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -45,6 +45,7 @@ type EgressConnection interface {
 	PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string)
 	PostMetric(metric *telemetry_edge.Metric)
 	PostTestMonitorResults(results *telemetry_edge.TestMonitorResults)
+	IsAttached() bool
 }
 
 type IdGenerator interface {
@@ -99,6 +100,7 @@ type StandardEgressConnection struct {
 	// outgoingContext is used by gRPC client calls to build the final call context
 	outgoingContext          context.Context
 	networkDialOptionCreator NetworkDialOptionCreator
+	attached                 bool
 }
 
 func init() {
@@ -251,7 +253,7 @@ func (c *StandardEgressConnection) attach() error {
 
 	go c.watchForInstructions(outgoingCtx, errChan, instructions)
 	go c.sendKeepAlives(outgoingCtx, errChan)
-
+	c.attached = true
 	for {
 		select {
 		case <-outgoingCtx.Done():
@@ -399,4 +401,7 @@ func (c *StandardEgressConnection) processTestMonitor(testMonitor *telemetry_edg
 				Warn("Unexpected nil test monitor results")
 		}
 	}()
+}
+func (c *StandardEgressConnection) IsAttached() bool {
+	return c.attached
 }
