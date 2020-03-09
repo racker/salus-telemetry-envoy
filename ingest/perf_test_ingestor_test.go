@@ -49,6 +49,7 @@ func TestPerfTestIngestor(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go ingestor.Start(ctx, mockEgressConnection)
 	defer cancel()
+	pegomock.When(mockEgressConnection.IsAttached()).ThenReturn(true)
 
 	// allow for ingestor to bind and webserver to start
 	time.Sleep(5 * time.Millisecond)
