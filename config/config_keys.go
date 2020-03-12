@@ -31,6 +31,7 @@ const (
 	IngestLineProtocolBind          = "ingest.lineProtocol.bind"
 	AmbassadorAddress               = "ambassador.address"
 	ResourceId                      = "resource_id"
+	TenantId                        = "tenant_id"
 	Zone                            = "zone"
 	PerfTestPort                    = "perfTest.port"
 	PerfTestMetricsPerMinute        = "perfTest.metricsPerMinute"

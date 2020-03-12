@@ -12,7 +12,13 @@ The following is an example configuration file that can be used as a starting po
 ```yaml
 # The identifier of the resource where this Envoy is running
 # The convention is a type:value, but is not required.
+# Can also be passed on the command-line as --resource-id
+# Can also be passed via the environment variable ENVOY_RESOURCE_ID
 resource_id: "type:value"
+# The tenant ID of the resource where this Envoy is running.
+# Can also be passed on the command-line as --tenant-id
+# Can also be passed via the environment variable ENVOY_TENANT_ID
+tenant_id: ""
 # Additional key:value string pairs that will be included with Envoy attachment.
 labels:
   #environment: production
