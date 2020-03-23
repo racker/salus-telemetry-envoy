@@ -33,15 +33,14 @@ const (
 )
 
 type OracleRunner struct {
-	basePath            string
-	running             *AgentRunningContext
-	commandHandler      CommandHandler
+	basePath       string
+	running        *AgentRunningContext
+	commandHandler CommandHandler
 }
 
 func init() {
 	registerSpecificAgentRunner(telemetry_edge.AgentType_ORACLE, &OracleRunner{})
 }
-
 
 func (o *OracleRunner) Load(agentBasePath string) error {
 	o.basePath = agentBasePath
@@ -85,7 +84,7 @@ func (o *OracleRunner) EnsureRunningState(ctx context.Context, applyConfigs bool
 	log.Info("started oracle agent")
 }
 
-func (o *OracleRunner) PostInstall() error {
+func (o *OracleRunner) PostInstall(string) error {
 	return nil
 }
 
@@ -135,7 +134,6 @@ func (o *OracleRunner) ProcessConfig(configure *telemetry_edge.EnvoyInstructionC
 	return nil
 }
 
-
 func (o *OracleRunner) writeConfigFile(path string, op *telemetry_edge.ConfigurationOp) error {
 	var configMap map[string]interface{}
 	err := json.Unmarshal([]byte(op.GetContent()), &configMap)
@@ -170,4 +168,3 @@ func (o *OracleRunner) Stop() {
 	o.running = nil
 
 }
-

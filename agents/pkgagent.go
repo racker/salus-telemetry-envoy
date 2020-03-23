@@ -58,7 +58,7 @@ func (pr *PackagesAgentRunner) PurgeConfig() error {
 	return purgeConfigsDirectory(pr.basePath)
 }
 
-func (pr *PackagesAgentRunner) PostInstall() error {
+func (pr *PackagesAgentRunner) PostInstall(string) error {
 	// no adjustments needed
 	return nil
 }

@@ -59,7 +59,7 @@ type SpecificAgentRunner interface {
 	EnsureRunningState(ctx context.Context, applyConfigs bool)
 	// PostInstall is invoked after installation of a new agent version and allows the
 	// specific agent runner a chance to tweak capabilities assigned to the executable
-	PostInstall() error
+	PostInstall(agentVersionPath string) error
 	PurgeConfig() error
 	ProcessConfig(configure *telemetry_edge.EnvoyInstructionConfigure) error
 	ProcessTestMonitor(correlationId string, content string, timeout time.Duration) (*telemetry_edge.TestMonitorResults, error)

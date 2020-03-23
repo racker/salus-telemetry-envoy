@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ package agents_test
 import (
 	"context"
 	"github.com/petergtz/pegomock"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/agents"
 	"github.com/racker/salus-telemetry-envoy/agents/matchers"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,7 +92,8 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 
 			agentsRunner.ProcessInstall(install)
 
-			mockSpecificAgentRunner.VerifyWasCalledOnce().PostInstall()
+			expectedAgentVersionPath := path.Join(dataPath, "agents", tt.agentType.String(), tt.version)
+			mockSpecificAgentRunner.VerifyWasCalledOnce().PostInstall(expectedAgentVersionPath)
 
 			mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
 
@@ -100,6 +101,116 @@ func TestAgentsRunner_ProcessInstall(t *testing.T) {
 			assert.FileExists(t, path.Join(dataPath, "agents", tt.agentType.String(), tt.version, "bin", exeFilename))
 		})
 	}
+}
+
+func TestAgentsRunner_ProcessInstall_linkHandling(t *testing.T) {
+	const agentType = telemetry_edge.AgentType_TELEGRAF
+	agentTypeStr := agentType.String()
+	const (
+		initialVersion = "1.0.0"
+		newerVersion   = "2.0.0"
+	)
+
+	agents.UnregisterAllAgentRunners()
+
+	ts := httptest.NewServer(http.FileServer(http.Dir("testdata")))
+	defer ts.Close()
+
+	dataPath, err := ioutil.TempDir("", "test_agents")
+	require.NoError(t, err)
+	defer os.RemoveAll(dataPath)
+	viper.Set(config.AgentsDataPath, dataPath)
+
+	detachChan := make(chan struct{}, 1)
+	agentsRunner, err := agents.NewAgentsRunner(detachChan)
+	require.NoError(t, err)
+	require.NotNil(t, agentsRunner)
+
+	installInitial := &telemetry_edge.EnvoyInstructionInstall{
+		Url: ts.URL + "/" + "telegraf_dot_slash.tgz",
+		Exe: "./telegraf/usr/bin/telegraf",
+		Agent: &telemetry_edge.Agent{
+			Version: initialVersion,
+			Type:    agentType,
+		},
+	}
+	installNewer := &telemetry_edge.EnvoyInstructionInstall{
+		Url: ts.URL + "/" + "telegraf_dot_slash.tgz",
+		Exe: "./telegraf/usr/bin/telegraf",
+		Agent: &telemetry_edge.Agent{
+			Version: newerVersion,
+			Type:    agentType,
+		},
+	}
+
+	verifyPaths := func(version string) {
+		assert.FileExists(t, path.Join(dataPath, "agents", agentTypeStr, "CURRENT", "bin", "telegraf"))
+		assert.FileExists(t, path.Join(dataPath, "agents", agentTypeStr, version, "bin", "telegraf"))
+
+		linkTarget, err := os.Readlink(path.Join(dataPath, "agents", agentTypeStr, "CURRENT"))
+		require.NoError(t, err)
+		assert.Equal(t, version, linkTarget)
+	}
+
+	// Sub-test to scope mock
+	t.Run("initial", func(t *testing.T) {
+		pegomock.RegisterMockTestingT(t)
+
+		mockSpecificAgentRunner := NewMockSpecificAgentRunner()
+
+		agents.RegisterAgentRunnerForTesting(agentType, mockSpecificAgentRunner)
+
+		agentsRunner.ProcessInstall(installInitial)
+
+		mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
+
+		mockSpecificAgentRunner.VerifyWasCalledOnce().PostInstall(
+			path.Join(dataPath, "agents", agentTypeStr, initialVersion))
+
+		mockSpecificAgentRunner.VerifyWasCalledOnce().Stop()
+
+		verifyPaths(initialVersion)
+	})
+
+	t.Run("same", func(t *testing.T) {
+		pegomock.RegisterMockTestingT(t)
+
+		mockSpecificAgentRunner := NewMockSpecificAgentRunner()
+
+		agents.RegisterAgentRunnerForTesting(agentType, mockSpecificAgentRunner)
+
+		agentsRunner.ProcessInstall(installInitial)
+
+		mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
+
+		// Verify NOT CALLED
+		mockSpecificAgentRunner.VerifyWasCalled(pegomock.Never()).PostInstall(
+			path.Join(dataPath, "agents", agentTypeStr, initialVersion))
+
+		// Verify NOT CALLED
+		mockSpecificAgentRunner.VerifyWasCalled(pegomock.Never()).Stop()
+
+		verifyPaths(initialVersion)
+	})
+
+	t.Run("newer", func(t *testing.T) {
+		pegomock.RegisterMockTestingT(t)
+
+		mockSpecificAgentRunner := NewMockSpecificAgentRunner()
+
+		agents.RegisterAgentRunnerForTesting(agentType, mockSpecificAgentRunner)
+
+		agentsRunner.ProcessInstall(installNewer)
+
+		mockSpecificAgentRunner.VerifyWasCalledOnce().EnsureRunningState(matchers.AnyContextContext(), pegomock.EqBool(false))
+
+		mockSpecificAgentRunner.VerifyWasCalledOnce().PostInstall(
+			path.Join(dataPath, "agents", agentTypeStr, newerVersion))
+
+		mockSpecificAgentRunner.VerifyWasCalledOnce().Stop()
+
+		verifyPaths(newerVersion)
+	})
 }
 
 func TestAgentsRunner_Detach(t *testing.T) {
