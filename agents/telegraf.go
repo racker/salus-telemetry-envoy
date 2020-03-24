@@ -193,8 +193,8 @@ func (tr *TelegrafRunner) handleTelegrafConfigurationOp(op *telemetry_edge.Confi
 	return false
 }
 
-func (tr *TelegrafRunner) PostInstall() error {
-	resolvedExePath := path.Join(tr.basePath, tr.exePath())
+func (tr *TelegrafRunner) PostInstall(agentVersionPath string) error {
+	resolvedExePath := path.Join(agentVersionPath, binSubpath, "telegraf")
 
 	err := addNetRawCapabilities(resolvedExePath)
 	if err != nil {

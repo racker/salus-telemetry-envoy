@@ -73,7 +73,7 @@ func (fbr *FilebeatRunner) SetCommandHandler(handler CommandHandler) {
 	fbr.commandHandler = handler
 }
 
-func (fbr *FilebeatRunner) PostInstall() error {
+func (fbr *FilebeatRunner) PostInstall(string) error {
 	return nil
 }
 

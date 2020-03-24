@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@ package agents
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
@@ -113,10 +114,6 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 	agentBasePath := path.Join(ar.DataPath, agentsSubpath, agentType.String())
 	outputPath := path.Join(agentBasePath, agentVersion)
 
-	abs, err := filepath.Abs(outputPath)
-	if err != nil {
-		abs = outputPath
-	}
 	if !fileExists(outputPath) {
 		err := os.MkdirAll(outputPath, dirPerms)
 		if err != nil {
@@ -131,27 +128,7 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 			return
 		}
 
-		specificAgentRunners[agentType].Stop()
-
-		// NOTE rather than symlink, might later use a metadata file
-		currentSymlinkPath := path.Join(agentBasePath, currentVerLink)
-		err = os.Remove(currentSymlinkPath)
-		if err != nil && !os.IsNotExist(err) {
-			_ = os.RemoveAll(outputPath)
-			log.WithError(err).Warn("failed to delete current version symlink")
-			return
-		}
-		err = os.Symlink(agentVersion, currentSymlinkPath)
-		if err != nil {
-			_ = os.RemoveAll(outputPath)
-			log.WithError(err).WithFields(log.Fields{
-				"version": agentVersion,
-				"type":    agentType,
-			}).Error("failed to create current version symlink")
-			return
-		}
-
-		err = specificAgentRunners[agentType].PostInstall()
+		err = specificAgentRunners[agentType].PostInstall(outputPath)
 		if err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"version": agentVersion,
@@ -159,27 +136,18 @@ func (ar *StandardAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInst
 			}).Error("failed to post-process agent installation")
 			return
 		}
-
-		// There's a chance a new agent version might get started here with "old" incompatible
-		// configs, but the Ambassador will follow up with a re-evaluation of bound monitors
-		// and will send newly translated config to eventually resolve this.
-		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
-
-		log.WithFields(log.Fields{
-			"path":    abs,
-			"type":    agentType,
-			"version": agentVersion,
-		}).Info("installed agent")
-	} else {
-		log.WithFields(log.Fields{
-			"type":    agentType,
-			"path":    abs,
-			"version": agentVersion,
-		}).Debug("agent already installed")
-
-		specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
-
 	}
+
+	err := ar.ensureCurrentSymlink(agentType, agentBasePath, agentVersion)
+	if err != nil {
+		log.WithError(err).WithFields(log.Fields{
+			"version": agentVersion,
+			"type":    agentType,
+		}).Error("failed to adjust current agent installation link")
+		return
+	}
+
+	specificAgentRunners[agentType].EnsureRunningState(ar.ctx, false)
 }
 
 func (ar *StandardAgentsRouter) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
@@ -249,4 +217,54 @@ func (ar *StandardAgentsRouter) ProcessTestMonitor(testMonitor *telemetry_edge.E
 		log.WithField("type", agentType).Warn("unable to test monitor for unknown agent type")
 		return nil
 	}
+}
+
+func (ar *StandardAgentsRouter) ensureCurrentSymlink(agentType telemetry_edge.AgentType,
+	agentBasePath string, agentVersion string) error {
+
+	currentSymlinkPath := path.Join(agentBasePath, currentVerLink)
+
+	// first grab some info about the symlink itself, if it exists
+	_, err := os.Lstat(currentSymlinkPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to access current link: %w", err)
+		}
+
+		// link not present, so skip down to link creation
+
+	} else {
+		// link is present, but maybe it already points to correct directory...
+		existingTarget, err := os.Readlink(currentSymlinkPath)
+		if err != nil {
+			return fmt.Errorf("failed to read current link: %w", err)
+		}
+
+		if existingTarget == agentVersion {
+			// it was already pointing to desired version, so nothing needs to be done
+
+			log.WithFields(log.Fields{
+				"version": agentVersion,
+				"type":    agentType,
+			}).Debug("current link is already set")
+			return nil
+		}
+
+		// remove link pointing to previous version
+		err = os.Remove(currentSymlinkPath)
+		if err != nil {
+			return fmt.Errorf("failed to delete current version symlink: %w", err)
+		}
+	}
+
+	// make sure a previous version is stopped
+	specificAgentRunners[agentType].Stop()
+
+	// ...and finally (re-)create the symlink pointing to the desired agent version
+	err = os.Symlink(agentVersion, currentSymlinkPath)
+	if err != nil {
+		return fmt.Errorf("failed to create current version symlink: %w", err)
+	}
+
+	return nil
 }
