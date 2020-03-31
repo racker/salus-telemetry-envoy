@@ -16,32 +16,18 @@ resource_id: "type:value"
 # Additional key:value string pairs that will be included with Envoy attachment.
 labels:
   #environment: production
+# Envoy-token allocated for client certificate retrieval
+auth_token: ""
 tls:
   auth_service:
     # The URL of the Salus Authentication Service
     url: http://localhost:8182
-    # The provider type to use for authented allocation of client TLS certificates. Further
-    # configuration is located at tls.token_providers.<token_provider>
-    # Possible options are
-    # - keystone_v2 : uses Identity v2 for x-auth-token allocation
-    # - static : uses statically provided headers to pass to Salus Authentication Service
-    token_provider: keystone_v2
-  #Provides client authentication certificates pre-allocated. Remove auth_service config when using this.
+  # `provided` mode can be used for development/testing since it uses pre-allocated certificates. 
+  # NOTE: Remove auth_service config when using this.
   #provided:
     #cert: client.pem
     #key: client-key.pem
     #ca: ca.pem
-  token_providers:
-    keystone_v2:
-      identityServiceUrl: https://identity.api.rackspacecloud.com/v2.0/
-      # can also be set by env variable $ENVOY_KEYSTONE_USERNAME
-      username: ...
-      # can also be set by env variable $ENVOY_KEYSTONE_APIKEY
-      apikey: ...
-    #Specifies one or more HTTP request headers to pass to authentication service
-    #static:
-    #  - name: Header-Name
-    #    value: headerValue
 ambassador:
   # The host:port of the secured gRPC endpoint of the Salus Ambassador
   address: localhost:6565

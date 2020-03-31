@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,9 @@ func init() {
 
 	rootCmd.PersistentFlags().String("resource-id", "", "Identifier of the resource where this Envoy is running")
 	viper.BindPFlag(config.ResourceId, rootCmd.PersistentFlags().Lookup("resource-id"))
+
+	rootCmd.PersistentFlags().String("auth-token", "", "Envoy-token allocated for client certificate retrieval")
+	viper.BindPFlag(config.AuthToken, rootCmd.PersistentFlags().Lookup("auth-token"))
 
 	rootCmd.PersistentFlags().String("data-path", config.DefaultAgentsDataPath,
 		"Data directory where Envoy stores downloaded agents and write agent configs")

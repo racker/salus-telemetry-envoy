@@ -21,8 +21,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
+	"github.com/racker/salus-telemetry-envoy/config"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"io"
 	"net/http"
 )
@@ -35,21 +38,11 @@ type authServiceResponse struct {
 	IssuingCACertificate string `json:"issuingCaCertificate"`
 }
 
-func (p *AuthServiceCertProvider) ProvideCertificates(config *TlsConfig) (*tls.Certificate, *x509.CertPool, error) {
+func (p *AuthServiceCertProvider) ProvideCertificates(tlsCfg *TlsConfig) (*tls.Certificate, *x509.CertPool, error) {
 
-	log.WithField("config", config.AuthService).Debug("acquiring certificates from auth service")
+	log.WithField("config", tlsCfg.AuthService).Debug("acquiring certificates from auth service")
 
-	provider, err := GetAuthTokenProvider(config.AuthService.TokenProvider)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get AuthTokenProvider")
-	}
-
-	token, err := provider.ProvideAuthToken()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to get auth token")
-	}
-
-	fullUrl, err := AppendUrlPath(config.AuthService.Url, "auth/cert")
+	fullUrl, err := AppendUrlPath(tlsCfg.AuthService.Url, "/v1.0/cert")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to build request url")
 	}
@@ -59,9 +52,8 @@ func (p *AuthServiceCertProvider) ProvideCertificates(config *TlsConfig) (*tls.C
 		return nil, nil, errors.Wrap(err, "failed to prepare auth service request")
 	}
 
-	for header, value := range token.Headers {
-		request.Header.Set(header, value)
-	}
+	request.Header.Set("Authorization",
+		fmt.Sprintf("Bearer %s", viper.GetString(config.AuthToken)))
 	request.Header.Set("Accept", "application/json")
 
 	client := &http.Client{}
