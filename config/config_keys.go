@@ -20,6 +20,7 @@ import "time"
 
 // Viper configuration keys used inter-package
 const (
+	AuthToken                       = "auth_token"
 	AgentsDataPath                  = "agents.dataPath"
 	AgentsTerminationTimeoutConfig  = "agents.terminationTimeout"
 	AgentsRestartDelayConfig        = "agents.restartDelay"

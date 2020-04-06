@@ -1,19 +1,17 @@
 /*
- *    Copyright 2018 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- *        http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- *
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package auth_test
@@ -34,8 +32,8 @@ import (
 
 func TestAuthServiceCertProvider_ProvideCertificates_Success(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-		assert.Equal(t, "/auth/cert", req.URL.Path)
-		assert.Equal(t, "token-1", req.Header.Get("X-Auth-Token"))
+		assert.Equal(t, "/v1.0/cert", req.URL.Path)
+		assert.Equal(t, "Bearer token1", req.Header.Get("Authorization"))
 
 		resp.Header().Set("Content-Type", "application/json")
 
@@ -49,16 +47,12 @@ func TestAuthServiceCertProvider_ProvideCertificates_Success(t *testing.T) {
 
 	viper.SetConfigType("yaml")
 	err := viper.ReadConfig(strings.NewReader(fmt.Sprintf(`
+auth_token: token1
 tls:
   auth_service:
     url: %s
-    token_provider: test
 `, ts.URL)))
 	require.NoError(t, err)
-
-	auth.RegisterAuthTokenProvider("test", func() (auth.AuthTokenProvider, error) {
-		return &TestAuthTokenProvider{Header: "X-Auth-Token", Token: "token-1"}, nil
-	})
 
 	certificate, certPool, err := auth.LoadCertificates()
 	require.NoError(t, err)
@@ -78,13 +72,8 @@ func TestAuthServiceCertProvider_ProvideCertificates_BadStatus(t *testing.T) {
 tls:
   auth_service:
     url: %s
-    token_provider: test
 `, ts.URL)))
 	require.NoError(t, err)
-
-	auth.RegisterAuthTokenProvider("test", func() (auth.AuthTokenProvider, error) {
-		return &TestAuthTokenProvider{Header: "X-Auth-Token", Token: "token-1"}, nil
-	})
 
 	certificate, certPool, err := auth.LoadCertificates()
 	require.Error(t, err)
@@ -104,13 +93,8 @@ func TestAuthServiceCertProvider_ProvideCertificates_MissingRespFields(t *testin
 tls:
   auth_service:
     url: %s
-    token_provider: test
 `, ts.URL)))
 	require.NoError(t, err)
-
-	auth.RegisterAuthTokenProvider("test", func() (auth.AuthTokenProvider, error) {
-		return &TestAuthTokenProvider{Header: "X-Auth-Token", Token: "token-1"}, nil
-	})
 
 	certificate, certPool, err := auth.LoadCertificates()
 	require.Error(t, err)
