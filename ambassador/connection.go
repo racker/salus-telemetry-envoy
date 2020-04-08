@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -141,14 +141,15 @@ func NewEgressConnection(agentsRunner agents.Router, detachChan chan<- struct{},
 		return nil, err
 	}
 
-	log.WithFields(log.Fields{
-		"resourceId": resourceId,
-	}).Debug("Starting connection with identifier")
-
 	return connection, nil
 }
 
 func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []telemetry_edge.AgentType) {
+
+	log.WithFields(log.Fields{
+		"resourceId": c.resourceId,
+	}).Debug("Starting connection with identifier")
+
 	c.ctx = ctx
 	c.supportedAgents = supportedAgents
 
