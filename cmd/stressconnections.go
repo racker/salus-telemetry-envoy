@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/racker/salus-telemetry-envoy/ambassador"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
+	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -65,7 +66,9 @@ var stressConnectionsCmd = &cobra.Command{
 
 				connections[i] = connection
 
-				go sendMetrics(ctx, resourceId, connection)
+				// simulate a bound monitor generating fabricated metrics
+				monitorId := uuid.NewV4().String()
+				go sendMetrics(ctx, resourceId, monitorId, connection)
 			}
 
 		})
@@ -85,7 +88,7 @@ func init() {
 	viper.BindPFlag("stress.metrics-per-minute", stressConnectionsCmd.Flag("metrics-per-minute"))
 }
 
-func sendMetrics(ctx context.Context, resourceId string, connection ambassador.EgressConnection) {
+func sendMetrics(ctx context.Context, resourceId string, monitorId string, connection ambassador.EgressConnection) {
 	metricsPerMinute := viper.GetInt("stress.metrics-per-minute")
 
 	interval := time.Minute / time.Duration(metricsPerMinute)
@@ -103,15 +106,18 @@ func sendMetrics(ctx context.Context, resourceId string, connection ambassador.E
 			return
 
 		case ts := <-ticker.C:
-			sendMetric(ts, resourceId, connection)
+			sendMetric(ts, resourceId, monitorId, connection)
 		}
 	}
 }
 
-func sendMetric(ts time.Time, resourceId string, connection ambassador.EgressConnection) {
+func sendMetric(ts time.Time, resourceId string, monitorId string, connection ambassador.EgressConnection) {
 	fvalues := make(map[string]float64)
 	fvalues["duration"] = rand.Float64() * 1000.0
 	tags := make(map[string]string)
+	// simulate extra labels injected by ambassador during monitor config instruction building
+	tags["monitor_id"] = monitorId
+	tags["monitor_type"] = "stress"
 	// this tag is mostly here so that debug logs reveal what resource would be "posting" each metric
 	tags["simulating_resource"] = resourceId
 	metric := &telemetry_edge.Metric{
