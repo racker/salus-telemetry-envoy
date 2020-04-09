@@ -185,7 +185,7 @@ When the [Go build tag](https://golang.org/pkg/go/build/) `dev` is enabled with 
 
 ```
 ./telemetry-envoy stress-connections --config=envoy-config-provided.yml \
-  --connection-count=5 --metrics-per-minute=20
+  --connection-count=5 --metrics-per-minute=20 --connections-delay=10s
 ```
 
 This intended use for this mode is stress-testing and profiling the Envoy-Ambassador connectivity performance. It runs a stripped down Envoy that does the following:

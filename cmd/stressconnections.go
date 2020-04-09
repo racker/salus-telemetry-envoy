@@ -46,6 +46,7 @@ var stressConnectionsCmd = &cobra.Command{
 			networkDialOptionCreator := ambassador.NewNetworkDialOptionCreator()
 
 			connectionCount := viper.GetInt("stress.connection-count")
+			connectionsDelay := viper.GetDuration("stress.connections-delay")
 			connections := make([]ambassador.EgressConnection, connectionCount)
 			for i := 0; i < connectionCount; i++ {
 				connection, err := ambassador.NewEgressConnection(
@@ -69,6 +70,8 @@ var stressConnectionsCmd = &cobra.Command{
 				// simulate a bound monitor generating fabricated metrics
 				monitorId := uuid.NewV4().String()
 				go sendMetrics(ctx, resourceId, monitorId, connection)
+
+				time.Sleep(connectionsDelay)
 			}
 
 		})
@@ -82,6 +85,10 @@ func init() {
 	stressConnectionsCmd.Flags().Int("connection-count", 5,
 		"Number of Ambassador connections to setup")
 	viper.BindPFlag("stress.connection-count", stressConnectionsCmd.Flag("connection-count"))
+
+	stressConnectionsCmd.Flags().Duration("connections-delay", 0,
+		"Amount of time to wait between the start of each connection. Default/0 allows for a stampede and longer allows for gradual ramp-up.")
+	viper.BindPFlag("stress.connections-delay", stressConnectionsCmd.Flag("connections-delay"))
 
 	stressConnectionsCmd.Flags().Int("metrics-per-minute", 20,
 		"Number of metrics to post per minute per connection")
@@ -140,11 +147,14 @@ func (m *mockAgentsRouter) Start(ctx context.Context) {
 }
 
 func (m *mockAgentsRouter) ProcessInstall(install *telemetry_edge.EnvoyInstructionInstall) {
+	log.WithField("instruction", install).Info("Ignoring install")
 }
 
 func (m *mockAgentsRouter) ProcessConfigure(configure *telemetry_edge.EnvoyInstructionConfigure) {
+	log.WithField("instruction", configure).Info("Ignoring configure")
 }
 
 func (m *mockAgentsRouter) ProcessTestMonitor(testMonitor *telemetry_edge.EnvoyInstructionTestMonitor) *telemetry_edge.TestMonitorResults {
+	log.WithField("testMonitor", testMonitor).Info("Ignoring test-monitor")
 	return nil
 }
