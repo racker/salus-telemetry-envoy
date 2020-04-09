@@ -118,7 +118,7 @@ func sendMetric(ts time.Time, resourceId string, connection ambassador.EgressCon
 		Variant: &telemetry_edge.Metric_NameTagValue{
 			NameTagValue: &telemetry_edge.NameTagValueMetric{
 				Name:      "stress_connection",
-				Timestamp: ts.Unix(),
+				Timestamp: ts.Unix() * 1000,
 				Tags:      tags,
 				Fvalues:   fvalues,
 			},
