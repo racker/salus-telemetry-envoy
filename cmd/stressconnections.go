@@ -93,6 +93,10 @@ func init() {
 	stressConnectionsCmd.Flags().Int("metrics-per-minute", 20,
 		"Number of metrics to post per minute per connection")
 	viper.BindPFlag("stress.metrics-per-minute", stressConnectionsCmd.Flag("metrics-per-minute"))
+
+	stressConnectionsCmd.Flags().Bool("stagger-metrics", true,
+		"When true, delay the initial metric sent by each connection by a random amount of the interval")
+	viper.BindPFlag("stress.stagger-metrics", stressConnectionsCmd.Flag("stagger-metrics"))
 }
 
 func sendMetrics(ctx context.Context, resourceId string, monitorId string, connection ambassador.EgressConnection) {
@@ -100,10 +104,12 @@ func sendMetrics(ctx context.Context, resourceId string, monitorId string, conne
 
 	interval := time.Minute / time.Duration(metricsPerMinute)
 
-	// sleep a random part of one interval
-	time.Sleep(time.Duration(
-		rand.Int63n(int64(interval)),
-	))
+	if viper.GetBool("stress.stagger-metrics") {
+		// sleep a random part of one interval
+		time.Sleep(time.Duration(
+			rand.Int63n(int64(interval)),
+		))
+	}
 
 	ticker := time.NewTicker(interval)
 

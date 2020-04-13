@@ -148,7 +148,7 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 
 	log.WithFields(log.Fields{
 		"resourceId": c.resourceId,
-	}).Debug("Starting connection with identifier")
+	}).Debug("Starting connection to Ambassador")
 
 	c.ctx = ctx
 	c.supportedAgents = supportedAgents
