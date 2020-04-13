@@ -178,6 +178,25 @@ The rate of metrics generated can be changed with a rest call like so:
 ```bash
 curl http://localhost:8100/ -d metricsPerMinute=10 -d floatsPerMetric=20
 ```
+
+### Running stress-connections mode
+
+When the [Go build tag](https://golang.org/pkg/go/build/) `dev` is enabled with `-tags dev`, then the sub-command `stress-connections` is available for use, such as:
+
+```
+./telemetry-envoy stress-connections --config=envoy-config-provided.yml \
+  --connection-count=5 --metrics-per-minute=20 --connections-delay=10s
+```
+
+This intended use for this mode is stress-testing and profiling the Envoy-Ambassador connectivity performance. It runs a stripped down Envoy that does the following:
+- Skips all creation of ingestors
+- Skips all registration of agent runners
+- Establishes a configurable number of connections (`--connection-count`) to the Ambassador specified in the given `--config` file. Each connection:
+    - Is assigned a resource ID `resource-{index}` where `{index}` starts at zero
+    - Gets a fabricated metric posted at the requested rate (`--metrics-per-minute`). The metric is named `stress_connection` and contains a single floating-point field named `duration` with a random value. The metric generator randomly staggers the start time for each connection to ensure activity is evenly spread across connections.
+
+> NOTE: In IntelliJ, the build tag preferences are located in "Languages & Framework > Go > Build Tags & Vendoring". The run config also has an option "Use all custom build tags" that needs to be enabled.
+
 ### Locally testing gRPC/proto changes
 
 If making local changes to the gRPC/proto files in `salus-telemetry-protocol`, you'll need to make a temporary change to `go.mod` to reference those. Add the following after the `require` block:
