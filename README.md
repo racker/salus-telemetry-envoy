@@ -12,11 +12,19 @@ The following is an example configuration file that can be used as a starting po
 ```yaml
 # The identifier of the resource where this Envoy is running
 # The convention is a type:value, but is not required.
+# Command line: --resource-id
+# Environment variable: ENVOY_RESOURCE_ID
 resource_id: "type:value"
+# If set, declares the monitoring zone for remote monitors
+# Command line: --zone
+# Environment variable: ENVOY_ZONE
+zone: ""
 # Additional key:value string pairs that will be included with Envoy attachment.
 labels:
   #environment: production
 # Envoy-token allocated for client certificate retrieval
+# Command line: --auth-token
+# Environment variable: ENVOY_AUTH_TOKEN
 auth_token: ""
 tls:
   auth_service:
@@ -58,6 +66,8 @@ ingest:
     bind: localhost:8194
 agents:
   # Data directory where Envoy stores downloaded agents and write agent configs
+  # Command line: --data-path
+  # Environment variable: ENOVY_DATA_PATH
   dataPath: /var/lib/telemetry-envoy
   # The amount of time an agent is allowed to gracefully stop after a TERM signal. If the
   # timeout is exceeded, then a KILL signal is sent.

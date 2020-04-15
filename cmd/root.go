@@ -57,6 +57,9 @@ func init() {
 	rootCmd.PersistentFlags().String("resource-id", "", "Identifier of the resource where this Envoy is running")
 	viper.BindPFlag(config.ResourceId, rootCmd.PersistentFlags().Lookup("resource-id"))
 
+	rootCmd.PersistentFlags().String("zone", "", "If set, declares the monitoring zone for remote monitors")
+	viper.BindPFlag(config.Zone, rootCmd.PersistentFlags().Lookup("zone"))
+
 	rootCmd.PersistentFlags().String("auth-token", "", "Envoy-token allocated for client certificate retrieval")
 	viper.BindPFlag(config.AuthToken, rootCmd.PersistentFlags().Lookup("auth-token"))
 
