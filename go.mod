@@ -5,7 +5,7 @@ require (
 	github.com/alecthomas/participle v0.3.0
 	github.com/cenkalti/backoff v2.0.0+incompatible
 	github.com/elastic/go-lumber v0.1.0
-	github.com/golang/protobuf v1.3.2
+	github.com/golang/protobuf v1.4.0
 	github.com/iancoleman/strcase v0.0.0-20180726023541-3605ed457bf7
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/klauspost/compress v1.4.0 // indirect
@@ -16,7 +16,7 @@ require (
 	github.com/petergtz/pegomock v2.7.0+incompatible
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.8.0
-	github.com/racker/salus-telemetry-protocol v0.4.0
+	github.com/racker/salus-telemetry-protocol v0.5.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/afero v1.2.0 // indirect

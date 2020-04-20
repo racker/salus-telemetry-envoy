@@ -242,18 +242,16 @@ func (c *StandardEgressConnection) attach() error {
 		ResourceId:      c.resourceId,
 		Zone:            viper.GetString(config.Zone),
 	}
-	log.WithField("summary", envoySummary).Info("attaching")
 
 	instructions, err := c.client.AttachEnvoy(outgoingCtx, envoySummary)
 	if err != nil {
 		return errors.Wrap(err, "failed to attach Envoy")
 	}
+	log.WithField("summary", envoySummary).Info("attached")
 
 	errChan := make(chan error, 10)
 
 	go c.watchForInstructions(outgoingCtx, errChan, instructions)
-	go c.sendKeepAlives(outgoingCtx, errChan)
-	c.attached = true
 	for {
 		select {
 		case <-outgoingCtx.Done():
@@ -376,6 +374,11 @@ func (c *StandardEgressConnection) watchForInstructions(ctx context.Context,
 			}
 
 			switch {
+			case instruction.GetReady() != nil:
+				log.Debug("ambassador is ready")
+				c.attached = true
+				go c.sendKeepAlives(ctx, errChan)
+
 			case instruction.GetInstall() != nil:
 				c.agentsRunner.ProcessInstall(instruction.GetInstall())
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Rackspace US, Inc.
+ * Copyright 2020 Rackspace US, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ import (
 	"context"
 	"github.com/petergtz/pegomock"
 	"github.com/phayes/freeport"
-	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/racker/salus-telemetry-envoy/ambassador"
 	"github.com/racker/salus-telemetry-envoy/ambassador/matchers"
 	"github.com/racker/salus-telemetry-envoy/config"
+	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,14 +42,16 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	//noinspection GoUnhandledErrorResult,GoNilness
 	defer listener.Close()
 
+	// Use a real gRPC server implementation bound on loopback
 	grpcServer := grpc.NewServer()
 	defer grpcServer.Stop()
 
-	// done simulates an ongoing connection by blocking the attach until test is complete
 	var done = make(chan struct{}, 1)
 	defer close(done)
+	var sendReady = make(chan struct{}, 1)
 
-	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	// ...but mock the Ambassador on the far-end
+	ambassadorService := setupMockAmbassadorServer(done, sendReady, grpcServer)
 
 	//noinspection GoUnhandledErrorResult
 	go grpcServer.Serve(listener)
@@ -80,6 +82,14 @@ func TestStandardEgressConnection_Start(t *testing.T) {
 	assertIdFromContext(t, "id-1", respStream.Context())
 	assert.Equal(t, "myZone", summary.Zone)
 
+	// ensure keepalives aren't sent until ready instruction
+	time.Sleep(10 * time.Millisecond)
+	ambassadorService.VerifyWasCalled(pegomock.Never()).
+		KeepAlive(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeKeepAliveRequest())
+
+	close(sendReady)
+
+	// now ensure keepalives are sent
 	ambassadorService.VerifyWasCalledEventually(pegomock.AtLeast(1), 100*time.Millisecond).
 		KeepAlive(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeKeepAliveRequest())
 }
@@ -96,8 +106,9 @@ func TestStandardEgressConnection_AmbassadorStop(t *testing.T) {
 
 	// done simulates an ongoing connection by blocking the attach until test is complete
 	var done = make(chan struct{}, 1)
+	var sendReady = make(chan struct{}, 1)
 
-	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	ambassadorService := setupMockAmbassadorServer(done, sendReady, grpcServer)
 
 	//noinspection GoUnhandledErrorResult
 	go grpcServer.Serve(listener)
@@ -111,7 +122,7 @@ func TestStandardEgressConnection_AmbassadorStop(t *testing.T) {
 	viper.Set(config.Zone, "myZone")
 	viper.Set(config.AmbassadorAddress, ambassadorAddr)
 	viper.Set("tls.disabled", true)
-	viper.Set("ambassador.keepAliveInterval", 1*time.Millisecond)
+	viper.Set("ambassador.keepAliveInterval", 100*time.Millisecond)
 
 	detachChan := make(chan struct{}, 1)
 	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
@@ -125,6 +136,7 @@ func TestStandardEgressConnection_AmbassadorStop(t *testing.T) {
 	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
 		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
 
+	close(sendReady)
 	// Stop the ambassador
 	t.Log("stopping ambassador")
 	close(done)
@@ -168,8 +180,9 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	// done simulates an ongoing connection by blocking the attach until test is complete
 	var done = make(chan struct{}, 1)
 	defer close(done)
+	var sendReady = make(chan struct{}, 1)
 
-	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	ambassadorService := setupMockAmbassadorServer(done, sendReady, grpcServer)
 	pegomock.When(ambassadorService.PostMetric(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgePostedMetric())).
 		ThenReturn(&telemetry_edge.PostMetricResponse{}, nil)
 
@@ -184,6 +197,7 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 	viper.Set(config.ResourceId, "ourResourceId")
 	viper.Set(config.AmbassadorAddress, ambassadorAddr)
 	viper.Set("tls.disabled", true)
+	viper.Set("ambassador.keepAliveInterval", 100*time.Millisecond)
 
 	detachChan := make(chan struct{}, 1)
 	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
@@ -196,6 +210,10 @@ func TestStandardEgressConnection_PostMetric(t *testing.T) {
 
 	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
 		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
+
+	close(sendReady)
+	// allow ready instruction processing
+	time.Sleep(10 * time.Millisecond)
 
 	metric := &telemetry_edge.Metric{
 		Variant: &telemetry_edge.Metric_NameTagValue{
@@ -235,8 +253,9 @@ func TestStandardEgressConnection_PostTestMonitorResults(t *testing.T) {
 	// done simulates an ongoing connection by blocking the attach until test is complete
 	var done = make(chan struct{}, 1)
 	defer close(done)
+	var sendReady = make(chan struct{}, 1)
 
-	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	ambassadorService := setupMockAmbassadorServer(done, sendReady, grpcServer)
 	pegomock.When(ambassadorService.PostTestMonitorResults(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeTestMonitorResults())).
 		ThenReturn(&telemetry_edge.PostTestMonitorResultsResponse{}, nil)
 
@@ -251,6 +270,7 @@ func TestStandardEgressConnection_PostTestMonitorResults(t *testing.T) {
 	viper.Set(config.ResourceId, "ourResourceId")
 	viper.Set(config.AmbassadorAddress, ambassadorAddr)
 	viper.Set("tls.disabled", true)
+	viper.Set("ambassador.keepAliveInterval", 100*time.Millisecond)
 
 	detachChan := make(chan struct{}, 1)
 	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
@@ -263,6 +283,10 @@ func TestStandardEgressConnection_PostTestMonitorResults(t *testing.T) {
 
 	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
 		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
+
+	close(sendReady)
+	// allow ready instruction processing
+	time.Sleep(10 * time.Millisecond)
 
 	metric := &telemetry_edge.Metric{
 		Variant: &telemetry_edge.Metric_NameTagValue{
@@ -308,8 +332,9 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	// done simulates an ongoing connection by blocking the attach until test is complete
 	var done = make(chan struct{}, 1)
 	defer close(done)
+	var sendReady = make(chan struct{}, 1)
 
-	ambassadorService := setupMockAmbassadorServer(done, grpcServer)
+	ambassadorService := setupMockAmbassadorServer(done, sendReady, grpcServer)
 	pegomock.When(ambassadorService.PostLogEvent(matchers.AnyContextContext(), matchers.AnyPtrToTelemetryEdgeLogEvent())).
 		ThenReturn(&telemetry_edge.PostLogEventResponse{}, nil)
 
@@ -324,6 +349,7 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 	viper.Set(config.ResourceId, "ourResourceId")
 	viper.Set(config.AmbassadorAddress, ambassadorAddr)
 	viper.Set("tls.disabled", true)
+	viper.Set("ambassador.keepAliveInterval", 100*time.Millisecond)
 	detachChan := make(chan struct{}, 1)
 
 	egressConnection, err := ambassador.NewEgressConnection(mockAgentsRunner, detachChan, idGenerator,
@@ -336,6 +362,10 @@ func TestStandardEgressConnection_PostLogEvent(t *testing.T) {
 
 	ambassadorService.VerifyWasCalledEventually(pegomock.Once(), 500*time.Millisecond).
 		AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())
+
+	close(sendReady)
+	// allow ready instruction processing
+	time.Sleep(10 * time.Millisecond)
 
 	egressConnection.PostLogEvent(telemetry_edge.AgentType_FILEBEAT, `{"testing":"value"}`)
 
@@ -413,10 +443,19 @@ func setupListener(t *testing.T) (net.Listener, string, error) {
 	return listener, ambassadorAddr, err
 }
 
-func setupMockAmbassadorServer(done chan struct{}, grpcServer *grpc.Server) *MockTelemetryAmbassadorServer {
+// setupMockAmbassadorServer sets up a mock far-end/Ambassador.
+// done simulates an ongoing connection by blocking the attach until test is complete.
+// sendReady is closed by the unit test when it is time to simulate the Ambassador sending a ready instruction.
+// grpcServer is the real gRPC mechanism bound on loopback.
+func setupMockAmbassadorServer(done chan struct{}, sendReady chan struct{}, grpcServer *grpc.Server) *MockTelemetryAmbassadorServer {
 	ambassadorService := NewMockTelemetryAmbassadorServer()
 	pegomock.When(ambassadorService.AttachEnvoy(matchers.AnyPtrToTelemetryEdgeEnvoySummary(), matchers.AnyTelemetryEdgeTelemetryAmbassadorAttachEnvoyServer())).
 		Then(func(params []pegomock.Param) pegomock.ReturnValues {
+			<-sendReady
+			response := params[1].(telemetry_edge.TelemetryAmbassador_AttachEnvoyServer)
+			response.Send(&telemetry_edge.EnvoyInstruction{
+				Details: &telemetry_edge.EnvoyInstruction_Ready{},
+			})
 			<-done
 			return nil
 		})
