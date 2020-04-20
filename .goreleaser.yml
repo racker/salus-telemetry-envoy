@@ -26,7 +26,6 @@ archives:
         format: zip
 nfpms:
   -
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     replacements:
       darwin: Darwin
       linux: Linux
