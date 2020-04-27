@@ -14,7 +14,11 @@ release:
 
 .PHONY: build
 build:
-	go build -o telemetry-envoy .
+	CGO_ENABLED=0 go build -o telemetry-envoy .
+
+.PHONY: build-dev
+build-dev:
+	CGO_ENABLED=0 go build -tags dev -o telemetry-envoy .
 
 .PHONY: install
 install: test
@@ -72,4 +76,4 @@ init-os-specific:
 endif
 
 init-gotools:
-	go get -mod=readonly github.com/petergtz/pegomock/...
+	go install github.com/petergtz/pegomock/...
