@@ -69,6 +69,7 @@ release:
 
 dockers:
   -
+    dockerfile: Dockerfile.release
     image_templates:
       - "{{ .Env.IMAGE_PREFIX }}salus-telemetry-envoy:{{.Tag}}"
       - "{{ .Env.IMAGE_PREFIX }}salus-telemetry-envoy:latest"

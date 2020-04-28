@@ -47,6 +47,8 @@ var stressConnectionsCmd = &cobra.Command{
 
 			connectionCount := viper.GetInt("stress.connection-count")
 			connectionsDelay := viper.GetDuration("stress.connections-delay")
+			resourcePrefix := viper.GetString("stress.resource-prefix")
+
 			connections := make([]ambassador.EgressConnection, connectionCount)
 			for i := 0; i < connectionCount; i++ {
 				connection, err := ambassador.NewEgressConnection(
@@ -58,7 +60,7 @@ var stressConnectionsCmd = &cobra.Command{
 				if err != nil {
 					log.Fatal(err)
 				}
-				resourceId := fmt.Sprintf("resource-%04d", i)
+				resourceId := fmt.Sprintf("%s-%04d", resourcePrefix, i)
 				ambassador.SetResourceId(connection, resourceId)
 
 				go connection.Start(ctx, []telemetry_edge.AgentType{
@@ -97,6 +99,10 @@ func init() {
 	stressConnectionsCmd.Flags().Bool("stagger-metrics", true,
 		"When true, delay the initial metric sent by each connection by a random amount of the interval")
 	viper.BindPFlag("stress.stagger-metrics", stressConnectionsCmd.Flag("stagger-metrics"))
+
+	stressConnectionsCmd.Flags().String("resource-prefix", "resource",
+		"The prefix of the resources that will be simulated which will be following by dash and an index")
+	viper.BindPFlag("stress.resource-prefix", stressConnectionsCmd.Flag("resource-prefix"))
 }
 
 func sendMetrics(ctx context.Context, resourceId string, monitorId string, connection ambassador.EgressConnection) {
