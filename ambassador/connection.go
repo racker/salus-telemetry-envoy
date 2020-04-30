@@ -162,7 +162,9 @@ func (c *StandardEgressConnection) Start(ctx context.Context, supportedAgents []
 		default:
 			err := backoff.RetryNotify(c.attach, backoff.WithContext(backoff.NewExponentialBackOff(), c.ctx),
 				func(err error, delay time.Duration) {
-					log.WithError(err).WithField("delay", delay).Warn("delaying until next attempt")
+					log.WithError(err).WithField("delay", delay).
+						WithField("envoyId", c.envoyId).
+						Warn("delaying until next attempt")
 
 					cause := errors.Cause(err)
 					if cause != nil && cause != err {
@@ -265,7 +267,8 @@ func (c *StandardEgressConnection) attach() error {
 
 		case err := <-errChan:
 			c.attached = false
-			log.WithError(err).Warn("terminating connection due to error")
+			log.WithError(err).WithField("envoyId", c.envoyId).
+				Warn("terminating connection due to error")
 			c.detachChan <- struct{}{}
 			cancelFunc()
 		}
@@ -274,7 +277,10 @@ func (c *StandardEgressConnection) attach() error {
 
 func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentType, jsonContent string) {
 	if !c.attached {
-		log.Debug("not posting log event to unattached connection.")
+		log.WithField("envoyId", c.envoyId).
+			WithField("agentType", agentType).
+			WithField("content", jsonContent).
+			Warn("unable to post log event due to unattached connection")
 		return
 	}
 	callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
@@ -292,7 +298,9 @@ func (c *StandardEgressConnection) PostLogEvent(agentType telemetry_edge.AgentTy
 
 func (c *StandardEgressConnection) PostMetric(metric *telemetry_edge.Metric) {
 	if !c.attached {
-		log.Debug("not posting metric event to unattached connection.")
+		log.WithField("envoyId", c.envoyId).
+			WithField("metric", metric).
+			Warn("unable to post metric due to unattached connection")
 		return
 	}
 	callCtx, callCancel := context.WithTimeout(c.outgoingContext, c.GrpcCallLimit)
