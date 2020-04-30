@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/racker/salus-telemetry-envoy/ambassador"
+	"github.com/racker/salus-telemetry-envoy/config"
 	"github.com/racker/salus-telemetry-protocol/telemetry_edge"
 	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
@@ -48,6 +49,10 @@ var stressConnectionsCmd = &cobra.Command{
 			connectionCount := viper.GetInt("stress.connection-count")
 			connectionsDelay := viper.GetDuration("stress.connections-delay")
 			resourcePrefix := viper.GetString("stress.resource-prefix")
+
+			// resource ID gets explicitly overridden in each connection below; however,
+			// the NewEgressConnection constructor still expects the property to be set
+			viper.Set(config.ResourceId, "__unused__")
 
 			connections := make([]ambassador.EgressConnection, connectionCount)
 			for i := 0; i < connectionCount; i++ {
