@@ -44,7 +44,8 @@ spec:
             - name: ENVOY_STRESS_METRICS_PER_MINUTE
               value: "1"
           envFrom:
-            # provides ENVOY_AUTH_TOKEN
+            # leverage pre-existing secret used for poller-envoy deploy
+            # specifically, provides ENVOY_AUTH_TOKEN
             - secretRef:
                 name: envoy-auth-token
           args:
@@ -55,6 +56,7 @@ spec:
             - mountPath: /etc/config/
               name: envoy-config
       volumes:
+        # leverage pre-existing ConfigMap for poller-envoy deployment
         - name: envoy-config
           configMap:
             name: telemetry-envoy-config
