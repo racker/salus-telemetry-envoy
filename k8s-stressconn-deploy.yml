@@ -1,0 +1,62 @@
+---
+# Create a headless service to act governing identity of the StatefulSet below
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy-stressconn
+spec:
+  selector:
+    app: envoy-stressconn
+  # "None" is what makes it a headless service
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: envoy-stressconn-deployment
+  labels:
+    app: envoy-stressconn
+spec:
+  serviceName: envoy-stressconn
+  replicas: 5
+  selector:
+    matchLabels:
+      app: envoy-stressconn
+  template:
+    metadata:
+      labels:
+        app: envoy-stressconn
+    spec:
+      containers:
+        - name: main
+          image: salus-telemetry-envoy
+          env:
+            # use pod name as resource prefix, which in turn is statefulset name with replica index
+            - name: ENVOY_STRESS_RESOURCE_PREFIX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # keep in mind that overall connection count is this times spec.replicas, above
+            - name: ENVOY_STRESS_CONNECTION_COUNT
+              value: "10"
+            - name: ENVOY_STRESS_CONNECTIONS_DELAY
+              value: "10ms"
+            - name: ENVOY_STRESS_METRICS_PER_MINUTE
+              value: "1"
+          envFrom:
+            # leverage pre-existing secret used for poller-envoy deploy
+            # specifically, provides ENVOY_AUTH_TOKEN
+            - secretRef:
+                name: envoy-auth-token
+          args:
+            - stress-connections
+            - --config
+            - /etc/config/telemetry-envoy.yaml
+          volumeMounts:
+            - mountPath: /etc/config/
+              name: envoy-config
+      volumes:
+        # leverage pre-existing ConfigMap for poller-envoy deployment
+        - name: envoy-config
+          configMap:
+            name: telemetry-envoy-config
