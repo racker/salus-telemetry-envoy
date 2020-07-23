@@ -46,7 +46,7 @@ ingest:
     # This ingestor can be disabled by setting this to an empty value, but will render the filebeat
     # agent unusable.
     # The port can be set to 0 or left off to allow any available port to be used.
-    bind: localhost:5044
+    bind: ""
   telegraf:
     json:
       # host:port of where the telegraf json ingestion should bind
@@ -63,7 +63,7 @@ ingest:
     # This ingestor can be disabled by setting this to an empty value, but will render the telegraf
     # and other agents unusable.
     # The port can be set to 0 or left off to allow any available port to be used.
-    bind: localhost:8194
+    bind: ""
 agents:
   # Data directory where Envoy stores downloaded agents and write agent configs
   # Command line: --data-path

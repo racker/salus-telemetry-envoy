@@ -39,7 +39,7 @@ type Lumberjack struct {
 const ()
 
 func init() {
-	viper.SetDefault(config.IngestLumberjackBind, "localhost:5044")
+	viper.SetDefault(config.IngestLumberjackBind, "")
 
 	registerIngestor(&Lumberjack{})
 }

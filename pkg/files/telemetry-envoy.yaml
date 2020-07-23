@@ -9,10 +9,6 @@ ambassador:
 agents:
   dataPath: /var/lib/telemetry-envoy
 ingest:
-  lumberjack:
-    bind: ""
   telegraf:
     json:
       bind: localhost:8094
-  lineProtocol:
-    bind: ""
