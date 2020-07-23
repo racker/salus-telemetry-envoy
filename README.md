@@ -83,7 +83,7 @@ agents:
 
 ### Debian / Ubuntu
 
-> This installation process is supported on Debian 8 / Ubuntu 15.04 and newer
+> This installation process is supported on Debian 8 / Ubuntu 16.04 and newer
 
 From [latest releases](https://github.com/racker/salus-telemetry-envoy/releases/latest) locate the filename ending with "Linux_x86_64.deb". Download that file to the system, such as using `wget`.
 
