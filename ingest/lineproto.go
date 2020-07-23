@@ -34,7 +34,7 @@ const (
 )
 
 func init() {
-	viper.SetDefault(config.IngestLineProtocolBind, "localhost:8194")
+	viper.SetDefault(config.IngestLineProtocolBind, "")
 
 	registerIngestor(&LineProtocol{})
 }

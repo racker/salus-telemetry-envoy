@@ -47,7 +47,7 @@ nfpms:
       postremove: pkg/scripts/postremove.sh
     files:
       pkg/files/telemetry-envoy.service: /usr/lib/telemetry-envoy/scripts/telemetry-envoy.service
-      pkg/files/telemetry-envoy.yaml.tmpl: /etc/salus/telemetry-envoy.yaml.tmpl
+      pkg/files/telemetry-envoy.yaml: /etc/salus/telemetry-envoy.yaml
     empty_folders:
     - /var/lib/telemetry-envoy
 checksum:
