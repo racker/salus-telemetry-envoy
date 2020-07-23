@@ -79,6 +79,69 @@ agents:
   testMonitorTimeout: 30s
 ```
 
+## Installation
+
+### Debian / Ubuntu
+
+> This installation process is supported on Debian 8 / Ubuntu 15.04 and newer
+
+From [latest releases](https://github.com/racker/salus-telemetry-envoy/releases/latest) locate the filename ending with "Linux_x86_64.deb". Download that file to the system, such as using `wget`.
+
+```shell script
+VERSION=0.18.0
+
+wget https://github.com/racker/salus-telemetry-envoy/releases/download/${VERSION}/telemetry-envoy_${VERSION}_Linux_x86_64.deb
+```
+
+Install the package as root using the following:
+
+```shell script
+sudo dpkg -i telemetry-envoy_${VERSION}_Linux_x86_64.deb
+```
+
+As root, such as with `sudo`, edit the file `/etc/salus/telemetry-envoy.yaml` by uncommenting and setting:
+- `resource_id`: an identifier unique to the server, such as a hostname
+- `auth_token`: a token allocated via the Salus public API endpoint `/v1.0/tenant/{tenantId}/envoy-tokens`
+
+Enable and start the service using:
+```shell script
+sudo systemctl enable telemetry-envoy
+sudo systemctl start telemetry-envoy
+```
+
+The service logs can be viewed using:
+```shell script
+journalctl -f -u telemetry-envoy
+```
+
+### RHEL / CentOS
+
+> This installation process is supported on RHEL/CentOS 7 and newer
+
+From [latest releases](https://github.com/racker/salus-telemetry-envoy/releases/latest) locate the version number and replace the value for `VERSION` when running the following commands:
+
+```shell script
+VERSION=0.18.0
+
+sudo yum install -y \
+  https://github.com/racker/salus-telemetry-envoy/releases/download/${VERSION}/telemetry-envoy_${VERSION}_Linux_x86_64.rpm
+```
+
+As root, such as with `sudo`, edit the file `/etc/salus/telemetry-envoy.yaml` by uncommenting and setting:
+- `resource_id`: an identifier unique to the server, such as a hostname
+- `auth_token`: a token allocated via the Salus public API endpoint `/v1.0/tenant/{tenantId}/envoy-tokens`
+
+Enable and start the service using:
+```shell script
+sudo systemctl enable telemetry-envoy
+sudo systemctl start telemetry-envoy
+```
+
+The service logs can be viewed using:
+```shell script
+journalctl -f -u telemetry-envoy
+```
+
 ## Development
 
 ### Environment Setup

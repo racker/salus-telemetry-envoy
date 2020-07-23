@@ -1,5 +1,8 @@
 #!/bin/bash
 
-if ! id telemetry-envoy &>/dev/null; then
-    useradd -r -M telemetry-envoy -s /bin/false -d /var/lib/telemetry-envoy -U
+USER=telemetry-envoy
+DATA_DIR=/var/lib/telemetry-envoy
+
+if ! id ${USER} &>/dev/null; then
+    useradd -r -M ${USER} -s /bin/false -d ${DATA_DIR} -U
 fi

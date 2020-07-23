@@ -1,0 +1,18 @@
+# The following fields must be uncommented and set before enabling telemetry-envoy service
+#resource_id: "{{ resourceId }}"
+#auth_token: "{{ authToken }}"
+tls:
+  auth_service:
+    url: https://salus-auth-serv.prod.monplat.rackspace.net
+ambassador:
+  address: salus-ambassador.prod.monplat.rackspace.net:443
+agents:
+  dataPath: /var/lib/telemetry-envoy
+ingest:
+  lumberjack:
+    bind: ""
+  telegraf:
+    json:
+      bind: localhost:8094
+  lineProtocol:
+    bind: ""
