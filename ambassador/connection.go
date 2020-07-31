@@ -211,14 +211,17 @@ func (c *StandardEgressConnection) attach() error {
 	// use a blocking dial, but fail on non-temp errors so that we can catch connectivity errors here rather than during
 	// the attach operation
 
-	dialTimeoutCtx, dialTimeoutCancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
-	defer dialTimeoutCancel()
+	// try both IPv6 and IPv4
+	dialTimeoutCtxTcp6, dialTimeoutTcp6Cancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+	defer dialTimeoutTcp6Cancel()
 
-	// try both 6 and 4
-	conn, err := c.dialNetwork("tcp6", dialTimeoutCtx)
+	conn, err := c.dialNetwork("tcp6", dialTimeoutCtxTcp6)
 	if err != nil {
-		log.Debugf("tcp6 connection failed with %v", err)
-		conn, err = c.dialNetwork("tcp4", dialTimeoutCtx)
+		log.WithError(err).Debugf("tcp6 connection failed, trying tcp4...")
+
+		dialTimeoutCtxTcp4, dialTimeoutTcp4Cancel := context.WithTimeout(c.ctx, c.GrpcCallLimit)
+		defer dialTimeoutTcp4Cancel()
+		conn, err = c.dialNetwork("tcp4", dialTimeoutCtxTcp4)
 	}
 	if err != nil {
 		return errors.Wrap(err, "failed to dial Ambassador")
