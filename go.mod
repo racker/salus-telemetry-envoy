@@ -15,7 +15,7 @@ require (
 	github.com/petergtz/pegomock v2.7.0+incompatible
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.8.0
-	github.com/racker/salus-telemetry-protocol v0.6.0
+	github.com/racker/salus-telemetry-protocol v0.7.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sirupsen/logrus v1.0.6
 	github.com/spf13/afero v1.2.0 // indirect
@@ -23,7 +23,7 @@ require (
 	github.com/spf13/viper v1.3.1
 	github.com/stretchr/testify v1.3.0
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2
-	google.golang.org/grpc v1.28.1
+	google.golang.org/grpc v1.30.0
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect

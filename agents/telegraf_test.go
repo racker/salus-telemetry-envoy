@@ -323,14 +323,26 @@ func TestTelegrafRunner_ProcessTestMonitor_Normal(t *testing.T) {
 	assert.Empty(t, results.GetErrors())
 	assert.NotEmpty(t, results.GetMetrics())
 
-	expectedMetricsFile, err := os.Open("testdata/expected_telegraf_test_config.txt")
-	require.NoError(t, err)
-	expectedMetrics, err := ioutil.ReadAll(expectedMetricsFile)
-	require.NoError(t, err)
-	_ = expectedMetricsFile.Close()
-	// rather than do a deep equals on a data structure that would be tedious to populated, we'll
-	// compare a verbose dump of the object with %+v
-	assert.Equal(t, string(expectedMetrics), fmt.Sprintf("%+v", results.GetMetrics()))
+	assert.Len(t, results.GetMetrics(), 3)
+
+	// and just spot check a few entries
+	assert.Equal(t, "cpu", results.GetMetrics()[0].GetNameTagValue().Name)
+	assert.Equal(t, int64(1565275557000), results.GetMetrics()[0].GetNameTagValue().Timestamp)
+	assert.Equal(t, "MS90HCG8WL", results.GetMetrics()[0].GetNameTagValue().Tags["host"])
+	assert.Equal(t, "cpu0", results.GetMetrics()[0].GetNameTagValue().Tags["cpu"])
+	assert.Equal(t, float64(74), results.GetMetrics()[0].GetNameTagValue().Fvalues["usage_idle"])
+
+	assert.Equal(t, "cpu", results.GetMetrics()[1].GetNameTagValue().Name)
+	assert.Equal(t, int64(1565275557000), results.GetMetrics()[1].GetNameTagValue().Timestamp)
+	assert.Equal(t, "MS90HCG8WL", results.GetMetrics()[1].GetNameTagValue().Tags["host"])
+	assert.Equal(t, "cpu1", results.GetMetrics()[1].GetNameTagValue().Tags["cpu"])
+	assert.Equal(t, float64(98), results.GetMetrics()[1].GetNameTagValue().Fvalues["usage_idle"])
+
+	assert.Equal(t, "cpu", results.GetMetrics()[2].GetNameTagValue().Name)
+	assert.Equal(t, int64(1565275557000), results.GetMetrics()[2].GetNameTagValue().Timestamp)
+	assert.Equal(t, "MS90HCG8WL", results.GetMetrics()[2].GetNameTagValue().Tags["host"])
+	assert.Equal(t, "cpu-total", results.GetMetrics()[2].GetNameTagValue().Tags["cpu"])
+	assert.Equal(t, 89.44723618090453, results.GetMetrics()[2].GetNameTagValue().Fvalues["usage_idle"])
 
 	configToml, _, listener := tcr.VerifyWasCalledOnce().
 		StartTestConfigServer(matchers.AnySliceOfByte(), matchers.AnyChanOfError(), matchers.AnyNetListener()).
