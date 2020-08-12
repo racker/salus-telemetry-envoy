@@ -3,6 +3,7 @@ steps:
   - id: GO_TEST
     name: 'golang:1.13'
     entrypoint: 'bash'
+    dir: /workspace
     args:
       - '-c'
       - |
