@@ -40,8 +40,10 @@ var stressConnectionsCmd = &cobra.Command{
 	Short: "Run the Envoy in a connection-only mode with simulated metrics posted",
 	Run: func(cmd *cobra.Command, args []string) {
 		handleInterrupts(func(ctx context.Context) {
+			if viper.GetBool("stress.quiet") {
+				log.SetLevel(log.WarnLevel)
+			}
 
-			detachChan := make(chan struct{}, 1)
 			idGenerator := ambassador.NewIdGenerator()
 
 			networkDialOptionCreator := ambassador.NewNetworkDialOptionCreator()
@@ -58,7 +60,7 @@ var stressConnectionsCmd = &cobra.Command{
 			for i := 0; i < connectionCount; i++ {
 				connection, err := ambassador.NewEgressConnection(
 					&mockAgentsRouter{},
-					detachChan,
+					nil,
 					idGenerator,
 					networkDialOptionCreator,
 				)
@@ -108,6 +110,10 @@ func init() {
 	stressConnectionsCmd.Flags().String("resource-prefix", "resource",
 		"The prefix of the resources that will be simulated which will be following by dash and an index")
 	viper.BindPFlag("stress.resource-prefix", stressConnectionsCmd.Flag("resource-prefix"))
+
+	stressConnectionsCmd.Flags().Bool("quiet", true,
+		"Only show warning level logs and above")
+	viper.BindPFlag("stress.quiet", stressConnectionsCmd.Flag("quiet"))
 }
 
 func sendMetrics(ctx context.Context, resourceId string, monitorId string, connection ambassador.EgressConnection) {
