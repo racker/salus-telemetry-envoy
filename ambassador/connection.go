@@ -105,7 +105,7 @@ type StandardEgressConnection struct {
 func init() {
 	viper.SetDefault(config.AmbassadorAddress, "localhost:6565")
 	viper.SetDefault("grpc.callLimit", 30*time.Second)
-	viper.SetDefault("ambassador.keepAliveInterval", 10*time.Second)
+	viper.SetDefault("ambassador.keepAliveInterval", 45*time.Second)
 }
 
 // NewEgressConnection creates the component that manages connections out to a Salus Ambassador.
@@ -207,6 +207,7 @@ func (c *StandardEgressConnection) attach() error {
 	log.
 		WithField("ambassadorAddress", c.Address).
 		WithField("envoyId", c.envoyId).
+		WithField("resourceId", c.resourceId).
 		Info("dialing ambassador")
 	// use a blocking dial, but fail on non-temp errors so that we can catch connectivity errors here rather than during
 	// the attach operation
@@ -272,7 +273,10 @@ func (c *StandardEgressConnection) attach() error {
 			c.attached = false
 			log.WithError(err).WithField("envoyId", c.envoyId).
 				Warn("terminating connection due to error")
-			c.detachChan <- struct{}{}
+			// notify listeners of detachments, if needed
+			if c.detachChan != nil {
+				c.detachChan <- struct{}{}
+			}
 			cancelFunc()
 		}
 	}
