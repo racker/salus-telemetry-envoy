@@ -1,0 +1,8 @@
+---
+description: deploy on merges to master
+filename: cloudbuild-deploy.yaml
+name: salus-telemetry-envoy-master
+triggerTemplate:
+  branchName: "^master$"
+  projectId: salus-220516
+  repoName: github_racker_salus-telemetry-envoy
