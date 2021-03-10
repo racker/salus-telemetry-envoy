@@ -1,0 +1,10 @@
+---
+description: build on all pull requests
+filename: cloudbuild.yaml
+github:
+  name: salus-telemetry-envoy
+  owner: racker
+  pullRequest:
+    branch: ".*"
+    commentControl: COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY
+name: salus-telemetry-envoy-branch
